@@ -26,7 +26,6 @@ int main(int argc, char **argv) {
     ws = malloc(sizeof (*ws));
     ws->W = init(argc, argv);
     W = ws->W;
-    if (W->rank == 0) fprintf(stderr, "Boo! ... ");
 
     // Set up initial conditions 
     int ny = W->P->ny;
@@ -93,7 +92,7 @@ int main(int argc, char **argv) {
 
         }
         wtf = MPI_Wtime();
-        if (W->rank == 0) printf("Elapsed time %.2g seconds\n", wtf - wt0);
+        if (W->rank == 0) printf("Elapsed time %lf seconds\n", wtf - wt0);
     }
     MPI_Finalize();
     return 0;
@@ -103,20 +102,18 @@ void dcopy(int n, const double *x, double *y) {
     for (int i = 0; i < n; i++)
         y[i] = x[i];
 }
-
 void daxpy(int n, double a, const double *x, double *y) {
     for (int i = 0; i < n; i++) 
         y[i] += a * x[i];
 }
-
-
 css * newton_sparsity(cs *J) {
+    // Perform symbolic analysis of the Jacobian for subsequent LU
+    // factorisation
     css *S;
-    int order = 0;           // 0 = natural order, 1 = minimum degree ordering of A + A'
+    int order = 0;           // 0 = natural, 1 = min deg order of A + A'
     S = cs_sqr(order, J, 0); // 0 means we're doing LU and not QR
     return S;
 }
-
 void newton_matrix(odews *ws) {
     // Create a Newton matrix from the given step gamma and Jacobian in W
     cs *M, *eye;
@@ -128,7 +125,6 @@ void newton_matrix(odews *ws) {
     ws->N = cs_lu(M, ws->S, 1);
     cs_spfree(M);
 }
-
 int lusoln(odews *ws, double *b) {
     // Can only be called if newton_matrix has been called already 
     double *x;

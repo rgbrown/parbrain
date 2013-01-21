@@ -5,7 +5,7 @@
 #
 # @ job_type = parallel
 #
-# @ node = 8 
+# @ node = 1 
 # @ tasks_per_node = 32  
 #
 # @ wall_clock_limit = 00:20:00
@@ -27,4 +27,4 @@ export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
 
-poe ./simulate 15 3
+poe ./simulate 21 3

@@ -662,18 +662,15 @@ void eval_dfdx(workspace *W, double t, double *y, double *f, double eps) {
         for (int k = 0; k < W->P->ny; k++)
             y1[k] = y[k];
 
-        for (int k = W->dfdx->r[igrp]; k < W->dfdx->r[igrp + 1]; k++)
-        {
+        for (int k = W->dfdx->r[igrp]; k < W->dfdx->r[igrp + 1]; k++) {
             j = W->dfdx->g[k];
-            h[j] = eps * fabs(y[j]); 
+            h[j] = eps; // * fabs(y[j]); 
             y1[j] += h[j];
         }
         rhs(W, t, y1, W->p, f1);  // f(t, y + dy, p)
-        for (int k = W->dfdx->r[igrp]; k < W->dfdx->r[igrp+1]; k++)
-        {
+        for (int k = W->dfdx->r[igrp]; k < W->dfdx->r[igrp+1]; k++) {
             j = W->dfdx->g[k];
-            for (int ip = W->dfdx->A->p[j]; ip < W->dfdx->A->p[j+1]; ip++)
-            {
+            for (int ip = W->dfdx->A->p[j]; ip < W->dfdx->A->p[j+1]; ip++) {
                 i = W->dfdx->A->i[ip];
                 W->dfdx->A->x[ip] = (f1[i] - f[i]) / h[j];
             }
@@ -688,29 +685,25 @@ void eval_dfdp(workspace *W, double t, double *y, double *f, double eps) {
     p1 = malloc(W->A->m  * sizeof (*p1));
     f1 = malloc(W->P->ny * sizeof (*f1));
 
-    for (int igrp = 0; igrp < W->dfdp->ng; igrp++)
-    {
+    for (int igrp = 0; igrp < W->dfdp->ng; igrp++) {
         // Set p1 back to p
         for (int k = 0; k < W->A->m; k++)
             p1[k] = W->p[k];
 
         // Increment entry of h for every entry column in the group 
-        for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++)
-        {
+        for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++) {
             j = W->dfdp->g[k];
-            h[j] = eps * fabs(W->p[j]);
+            h[j] = eps; // * fabs(W->p[j]);
             p1[j] += h[j];
         }
 
         // Evaluate the right hand side
         rhs(W, t, y, p1, f1);
         // Iterate over the columns in the gropu
-        for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++)
-        {
+        for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++) {
             j = W->dfdp->g[k];
             // and then the rows in the column
-            for (int ip = W->dfdp->A->p[j]; ip < W->dfdp->A->p[j+1]; ip++)
-            {
+            for (int ip = W->dfdp->A->p[j]; ip < W->dfdp->A->p[j+1]; ip++) {
                 i = W->dfdp->A->i[ip];
                 W->dfdp->A->x[ip] = (f1[i] - f[i]) / h[j];
             }
