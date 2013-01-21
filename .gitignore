@@ -16,5 +16,11 @@
 *.out
 *.app
 
+simulate 
+tags 
+testbrain
+testmat2
+testmatops
+
 # Editor temporary files
 *.swp

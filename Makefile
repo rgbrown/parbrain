@@ -1,7 +1,18 @@
+MACHINE = $(bash "uname -m")
+
+CFALL = $(CFLAGS) $(TARGET_ARCH) -g -O3 -Wall -std=c99
+ifeq ($(MACHINE), ppc64)
+	CFARCHDEP = -q64 -qtune=pwr7 -qarch=pwr7 -qhot
+	MPCC = mpcc
+	INC = 
+else
+	CFARCHDEP = 
+    MPCC = mpicc
+    INC = -I/usr/include/suitesparse
+endif
+
+CF = $(CFALL) $(CFARCHDEP)
 CS = -lcxsparse
-MPCC = mpicc
-CF = $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -O3  -Wall -std=c99
-INC = -I/usr/include/suitesparse
 OBJ = matops.o brain.o constants.o
 EXE = testmatops testmat2 simulate testbrain
 

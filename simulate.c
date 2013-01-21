@@ -21,12 +21,12 @@ int main(int argc, char **argv) {
     double wt0, wtf;
     
     MPI_Init(&argc, &argv);
-    if (W->rank == 0) fprintf(stderr, "Boo! ... ");
 
     // Initialise the workspace 
     ws = malloc(sizeof (*ws));
     ws->W = init(argc, argv);
     W = ws->W;
+    if (W->rank == 0) fprintf(stderr, "Boo! ... ");
 
     // Set up initial conditions 
     int ny = W->P->ny;
