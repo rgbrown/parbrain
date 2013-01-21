@@ -16,8 +16,9 @@
 *.out
 *.app
 
-simulate 
-tags 
+# Project executables
+simulate
+tags
 testbrain
 testmat2
 testmatops
