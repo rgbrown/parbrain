@@ -103,6 +103,7 @@ typedef struct workspace {
     int     Np;     /* Number of levels for local subtree */
 
     /* Jacobian information */
+    int    isjac;
     numjac *dfdx;
     numjac *dfdp;
     cs     *dgdx;

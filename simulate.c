@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
     double wt0, wtf;
     
     MPI_Init(&argc, &argv);
+    if (W->rank == 0) fprintf(stderr, "Boo! ... ");
 
     // Initialise the workspace 
     ws = malloc(sizeof (*ws));
@@ -39,38 +40,6 @@ int main(int argc, char **argv) {
     evaluate(W, 0., y, dy);
     jacupdate(W, 0., y);
 
-    int dojactest = 0;
-    if (dojactest) {
-        // Investigate Jacobian correctness
-        cs *Jt;
-        Jt = cs_transpose(W->J, 1);
-        if (W->rank == 0) {
-            printf("J' = ");
-            sparseprint(Jt);
-            printf("Approx:\n");
-        }
-
-        // Crude numerical Jacobian
-        free(y);
-        double *y1;
-        double *f1, *df;
-        y = repmatv(1.1, ny);
-        evaluate(W, 0., y, dy);
-        y1 = repmatv(1.1, ny);
-        f1 = zerosv(ny);
-        df = zerosv(ny);
-        double dx = 1e-5;
-        for (int i = 0; i < ny; i++) {
-            y1[i] = y[i] + dx;
-            evaluate(W, 0., y1, f1);
-            for (int j = 0; j < ny; j++) {
-                df[j] = (f1[j] - dy[j]) / dx;
-            }
-            if (W->rank == 0)
-                vecprint(df, ny);
-            y1[i] = y[i];
-        }
-    }
     int donewton = 1;
     if (donewton) {
         wt0 = MPI_Wtime();

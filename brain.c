@@ -65,6 +65,7 @@ void evaluate(workspace *W, double t, double *y, double *dy) {
         l = W->P->l[i];
         W->g[i] = pow(r, 4) / l;
     }
+    // printf("%4d: Boo! ", W->rank);
     // Solve for pressure and flow
     solve(W, p0(t), W->P->pcap);
     // Evaluate the right hand side equations
@@ -95,12 +96,13 @@ void jacupdate(workspace *W, double t, double *y) {
     eval_dfdx(W, t, y, f, eps);
     eval_dfdp(W, t, y, f, eps); 
 
-    cs_spfree(W->J);
+    if (W->isjac) cs_spfree(W->J);
     cs *Y;
     // Compute the product dfdx + dfdp dpdg dgdx
 
     Y = cs_multiply(W->dfdp->A, W->dpdgneg);
     W->J = cs_add(W->dfdx->A, Y, 1, -1);
+    W->isjac = 1;
     cs_spfree(Y);
 
 
@@ -337,6 +339,7 @@ user *init_params(workspace *W) {
 }
 void init_jacobians(workspace *W) {
     // Create the data structures for each of the Jacobians
+    W->isjac = 0;
     init_dgdx(W);
     init_dpdg(W);
     init_dfdx(W);
@@ -457,6 +460,7 @@ void init_dfdp(workspace *W) {
     }
     T->nz = nzloc * na;
     J = cs_compress(T);
+
     cs_spfree(T);
     W->dfdp = numjacinit(J);
     cs_spfree(J);
@@ -508,24 +512,26 @@ void compute_uv(workspace *W, double pc) {
     W->gcomm[W->rank] = W->g[W->A->n-1];
 }
 void communicate(workspace *W) {
-    double *buf;
+    double send_buf[3], *recv_buf;
 
-    buf = W->buf;
+    recv_buf = W->buf;
 
     // Put local variables into the communication buffer
-    buf[NSYMBOLS * W->rank    ] = W->ucomm[W->rank];
-    buf[NSYMBOLS * W->rank + 1] = W->vcomm[W->rank];
-    buf[NSYMBOLS * W->rank + 2] = W->gcomm[W->rank];
+    send_buf[0] = W->ucomm[W->rank];
+    send_buf[1] = W->vcomm[W->rank];
+    send_buf[2] = W->gcomm[W->rank];
 
     // Fill up the buffer with MPI all-to-all communication
-    MPI_Allgather(&buf[NSYMBOLS * W->rank], NSYMBOLS, MPI_DOUBLE, 
-            buf, NSYMBOLS, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(send_buf, NSYMBOLS, MPI_DOUBLE, recv_buf, NSYMBOLS, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Populate u1, v1, g1
     for (int i = 0; i < W->n_procs; i++) {
-        W->ucomm[i] = buf[NSYMBOLS * i    ];
-        W->vcomm[i] = buf[NSYMBOLS * i + 1];
-        W->gcomm[i] = buf[NSYMBOLS * i + 2];
+        if (i != W->rank) {
+            W->ucomm[i] = recv_buf[NSYMBOLS * i    ];
+            W->vcomm[i] = recv_buf[NSYMBOLS * i + 1];
+            W->gcomm[i] = recv_buf[NSYMBOLS * i + 2];
+        }
     }
 }
 void compute_root(workspace *W, double pin) {
@@ -547,12 +553,12 @@ void compute_root(workspace *W, double pin) {
     AG = cs_multiply(W->A0, W->G0);
     X  = cs_multiply(AG, W->A0t);
     B = cs_add(X, D, 1., 1.);
-    cs_spfree(D); cs_spfree(X);
+    cs_spfree(D); 
+    cs_spfree(X);
 
     // Perform numerical Cholesky factorisation 
     Nu = cs_chol(B, W->symbchol0);
     if (!Nu) printf("Numerical Cholesky failed in compute_root\n");
-            
     cs_spfree(B);
 
     // Define the boundary condition b (stick it in q0 for now)
@@ -612,7 +618,7 @@ void eval_dgdx(workspace *W, double t, double *y) {
 }
 void eval_dpdg(workspace *W, double t, double *y) {
     // Free the old one
-    cs_spfree(W->dpdgneg);
+    if (W->isjac) cs_spfree(W->dpdgneg);
 
     // Update the conductance matrix
     double r;
@@ -625,6 +631,7 @@ void eval_dpdg(workspace *W, double t, double *y) {
     cs *X, *Y;
     Y = cs_multiply(W->A_A, W->G);
     X = cs_multiply(Y, W->A_At);
+
     cs_spfree(Y);
 
     // Form the right hand side matrix
@@ -639,6 +646,7 @@ void eval_dpdg(workspace *W, double t, double *y) {
     cs *PA;
     PA = mldivide_chol(X, W->symbchol_reduced, B);
     W->dpdgneg = cs_multiply(W->Proj, PA);
+    cs_spfree(X);
     cs_spfree(PA);
     cs_spfree(B);
 }
