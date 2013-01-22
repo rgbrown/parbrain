@@ -27,3 +27,4 @@ testmatops
 *.out
 # Editor temporary files
 *.swp
+*.ll
