@@ -47,6 +47,8 @@ void rhs(workspace *W, double t, double *y, double *p, double *dy) {
 workspace * init(int argc, char **argv) {
     workspace *W;
     W = malloc(sizeof *W);
+    W->jacupdates = 0;
+    W->fevals = 0;
 
     init_geometry(W, argc, argv);
     init_subtree(W);
@@ -57,6 +59,7 @@ workspace * init(int argc, char **argv) {
     return W;
 } 
 void evaluate(workspace *W, double t, double *y, double *dy) {
+    W->fevals++;
     double r, l;
 
     // Update conductances of autoregulating vessels
@@ -80,6 +83,7 @@ void solve(workspace *W, double pin, double pc) {
     compute_sub(W, pin, pc);
 }
 void jacupdate(workspace *W, double t, double *y) {
+    W->jacupdates++;
     double *f;
     double eps = 1e-6;
 

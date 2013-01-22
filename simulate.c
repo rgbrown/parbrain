@@ -4,7 +4,16 @@ typedef struct odews {
     workspace *W;
     csn *N; // Newton matrix numeric factorisation
     css *S; // Newton matrix sybolic factorisation
+    double *y; // Workspace variable
+    double *f; // Workspace variable
     double gamma;
+    double t0;
+    double tf;
+    double ftol;
+    double ytol;
+    int    maxits;
+    int    nconv;
+    int mdeclared;
 } odews;
 
 // prototypes
@@ -15,111 +24,121 @@ void dcopy(int n, const double *x, double *y);
 void daxpy(int n, double a, const double *x, double *y);
 int all(int *x, int n);
 int sizecheck(double *x, int n, double tol);
+void initialconditions(workspace *W, double *y);
+void back_euler(odews *ws);
+void solver_init(odews *ws, int argc, char **argv);
+
 
 int main(int argc, char **argv) {
-    double *y;
     odews *ws;
-    workspace *W;
-    double wt0, wtf;
-    
     MPI_Init(&argc, &argv);
 
-    // Initialise the workspace 
-    ws = malloc(sizeof (*ws));
-    ws->W = init(argc, argv);
-    W = ws->W;
+    ws = malloc(sizeof *ws);
 
-    // Set up initial conditions and step size
-    int ny = W->P->ny;
-    y = repmatv(2., ny);
-    ws->gamma = 1e-1;
+    // Problem parameters
+    ws->gamma  = 1e-1;
+    ws->t0     = 0.;
+    ws->tf     = 10.;
+    ws->ftol   = 1e-4;
+    ws->ytol   = 1e-4;
+    ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation
+    ws->maxits = 100; // Maximum number of Newton iterations
+    solver_init(ws, argc, argv);
 
-    // Initialise vector f for function evaluation
-    double *dy;
-    dy = repmatv(0., ny);
-    
-    // Time the computational part
-    
-    wt0 = MPI_Wtime();
-
-    // Perform initial evaluation, Jacobian computation, and Newton matrix
-    evaluate(W, 0., y, dy);
-    jacupdate(W, 0., y);
-    ws->S = newton_sparsity(W->J);
-    newton_matrix(ws);
-
-    // Do simple newton iteration
-    double t0 = 0., tf = 10;
-    double t = t0;
+    double t0 = MPI_Wtime();
+    back_euler(ws);
+    double tf = MPI_Wtime();
+    if (ws->W->rank == 0) {
+        printf("Solution time:   %g seconds\n", tf - t0);
+        printf("    # fevals:    %d\n", ws->W->fevals);
+        printf("    # Jacobians: %d\n", ws->W->jacupdates);
+    }
+    MPI_Finalize();
+    return 0;
+}
+void back_euler(odews *ws) {
+    // Declare additional workspace variables
     double *beta, *w, *x;
-    double tnext;
-    double ftol = 1e-6;
-    double ytol = 1e-6;
+    workspace *W;
+    W = ws->W;
+    int ny = W->P->ny;
     beta = zerosv(ny);
-    w = zerosv(ny);
-    x = zerosv(ny);
-    int nits = 0;
-    for (int i = 0; t < tf; i++) {
-        // w[k+1] = w[k] - M^-1 (w[k] - beta - gamma g(w[k])) 
-        // where for Backward Euler, beta = y_i, g(w) = f(w, t_{i+1})
+    w    = zerosv(ny);
+    x    = zerosv(ny);
 
-        // copy current y into w and beta (we use current value as initial
-        // condition)
+    double t = ws->t0;
+    double tnext;
 
-        // Perform Jacobian update if necessary
-        if (nits > 5) {
-            if (W->rank == 0)
-                printf("Updating Jacobian\n");
-            evaluate(W, t, y, dy);
-            jacupdate(W, t, y);
+    // Initial newton_matrix computation
+    newton_matrix(ws);
+    int jac_needed = 0;
+
+    int converged = 0;
+    for (int i = 0; t < ws->tf; i++) {
+        // Perform a Jacobian update if necessary
+        if (jac_needed) {
+            jacupdate(W, t, ws->y); 
+            jac_needed = 0;
             newton_matrix(ws);
         }
 
-        dcopy(ny, y, beta);
-        dcopy(ny, y, w);
+        // Copy values from previous completed timestep
+        dcopy(ny, ws->y, beta);
+        dcopy(ny, ws->y, w);
         tnext = t + ws->gamma;
 
-        W->flag[W->rank] = 0; // not converged
-        nits = -1;
-        for (int k = 0; k < 100; k++) {
-            evaluate(W, tnext, w, dy);
-            if (all(W->flag, W->n_procs)) {
-                //if (W->rank == 0) {
-                //    printf("Converged in %d iterations\n", k);
-                //}
-                nits = k;
-                break;
-            }
-            // Do a fixed number of Newton steps
-            //if (W->rank == 0) vecprint(w, ny);
+        // Indicate that we haven't converged yet
+        W->flag[W->rank] = 0;
+        converged = 0;
+        for (int k = 0; k < ws->maxits; k++) {
+            evaluate(W, tnext, w, ws->f); // f = g(w)
 
-            // Form x = w - beta - gamma g
+            // evaluate also exchanges convergence information. If everyone
+            // has converged, then we can stop
+            if (all(W->flag, W->n_procs)) {
+                converged = 1;
+                if (k > ws->nconv)
+                    jac_needed = 1;
+                break; // w contains the correct value 
+            }
+            // Form x = w - beta - gamma g (our fcn value for Newton)
             dcopy(ny, w, x);
             daxpy(ny, -1, beta, x);
-            daxpy(ny, -ws->gamma, dy, x);
-            W->flag[W->rank] = 0; // not converged
-
-            // Check if x is small enough. If so set convergence flag
-            W->flag[W->rank] = sizecheck(x, ny, ftol);
-
-            // solve
-            lusoln(ws, x);
-
-            // update w
-            // Check if increment is small enough
-            W->flag[W->rank] |= sizecheck(x, ny, ytol);
-            daxpy(ny, -1, x, w);
+            daxpy(ny, -ws->gamma, ws->f, x);
+            W->flag[W->rank] = sizecheck(x, ny, ws->ftol); 
+            lusoln(ws, x);  // solve (x is now increment)
+            W->flag[W->rank] |= sizecheck(x, ny, ws->ytol);
+            daxpy(ny, -1, x, w); // update w with new value
+        } // Newton loop
+        if (!converged) {
+            printf("Newton iteration failed to converge\n");
+            exit(1);
         }
+        t = tnext;
+        dcopy(ny, w, ws->y); // update y values
+    } // timestep loop
+}
+void solver_init(odews *ws, int argc, char **argv) {
+    workspace *W;
 
-        dcopy(ny, w, y);
-        t += ws->gamma;
-        //if (!(i % 10)) vecprint(y, ny);
+    // Initialise the workspace
+    ws->W = init(argc, argv); W = ws->W;
+    ws->mdeclared = 0;
 
+    // Put initial conditions in to y
+    ws->y = zerosv(W->P->ny);
+    ws->f = zerosv(W->P->ny);
+    initialconditions(W, ws->y);
+
+    // Initial Jacobian computation
+    evaluate(W, ws->t0, ws->y, ws->f);
+    jacupdate(W, ws->t0, ws->y);
+    ws->S = newton_sparsity(W->J);
+}
+void initialconditions(workspace *W, double *y) {
+    for (int i = 0; i < W->P->ny; i++) {
+        y[i] = 2.;
     }
-    wtf = MPI_Wtime();
-    if (W->rank == 0) printf("Elapsed time %lf seconds\n", wtf - wt0);
-    MPI_Finalize();
-    return 0;
 }
 int all(int *x, int n) {
     int tf = 1;
@@ -136,8 +155,6 @@ int sizecheck(double *x, int n, double tol) {
     }
     return smallenough;
 }
-
-
 void dcopy(int n, const double *x, double *y) {
     for (int i = 0; i < n; i++)
         y[i] = x[i];
@@ -157,6 +174,10 @@ css * newton_sparsity(cs *J) {
 void newton_matrix(odews *ws) {
     // Create a Newton matrix from the given step gamma and Jacobian in W
     cs *M, *eye;
+    if (ws->mdeclared)
+        cs_nfree(ws->N);
+    else
+        ws->mdeclared = 1;
 
     eye = speye(ws->W->J->m);
     M = cs_add(eye, ws->W->J, 1, -ws->gamma);
