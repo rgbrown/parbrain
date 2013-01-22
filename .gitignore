@@ -23,5 +23,7 @@ testbrain
 testmat2
 testmatops
 
+*.err
+*.out
 # Editor temporary files
 *.swp

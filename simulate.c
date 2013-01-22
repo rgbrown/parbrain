@@ -127,8 +127,6 @@ int all(int *x, int n) {
         tf &= x[i];
     return tf;
 }
-
-
 int sizecheck(double *x, int n, double tol) {
     int smallenough = 1;
     for (int i = 0; i < n; i++) {

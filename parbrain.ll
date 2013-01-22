@@ -27,4 +27,4 @@ export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
 
-poe ./simulate 21 3
+poe ./simulate 21 1
