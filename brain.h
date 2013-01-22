@@ -118,6 +118,9 @@ typedef struct workspace {
     int *flag; // buffer for communicating convergence information
     int fevals;
     int jacupdates;
+    double tfeval;
+    double tjacupdate;
+    double tjacfactorize;
 
     /* Model-specific stuff */
     user   *P;

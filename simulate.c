@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
     ws = malloc(sizeof *ws);
+    int verbose = 0;
 
     // Problem parameters
     ws->gamma  = 1e-1;
@@ -49,9 +50,18 @@ int main(int argc, char **argv) {
     back_euler(ws);
     double tf = MPI_Wtime();
     if (ws->W->rank == 0) {
-        printf("Solution time:   %g seconds\n", tf - t0);
-        printf("    # fevals:    %d\n", ws->W->fevals);
-        printf("    # Jacobians: %d\n", ws->W->jacupdates);
+        if (verbose) {
+           
+            printf("Levels: %d Subtree size: %d N procs: %d\n", ws->W->N, ws->W->Nsub, ws->W->n_procs);
+            printf("Solution time:                %g seconds\n", tf - t0);
+            printf("    # fevals:                 %d\n", ws->W->fevals);
+            printf("    # Jacobians:              %d\n", ws->W->jacupdates);
+            printf("    # feval time:             %g seconds\n", ws->W->tfeval);
+            printf("    # Jacobian update time:   %g seconds\n", ws->W->tjacupdate);
+            printf("    # Jacobian symbolic time: %g seconds\n", ws->W->tjacfactorize);
+        } else {
+            printf("%4d%4d%4d%12.4e%4d%4d%12.4e%12.4e%12.4e\n", ws->W->N, ws->W->Nsub, ws->W->n_procs, tf - t0, ws->W->fevals, ws->W->jacupdates, ws->W->tfeval, ws->W->tjacupdate, ws->W->tjacfactorize);
+        }
     }
     MPI_Finalize();
     return 0;
@@ -131,9 +141,19 @@ void solver_init(odews *ws, int argc, char **argv) {
     initialconditions(W, ws->y);
 
     // Initial Jacobian computation
+    double t0 = MPI_Wtime();
     evaluate(W, ws->t0, ws->y, ws->f);
+    double tf = MPI_Wtime();
+    ws->W->tfeval = tf - t0;
+    t0 = MPI_Wtime();
     jacupdate(W, ws->t0, ws->y);
+    double ta = MPI_Wtime();
     ws->S = newton_sparsity(W->J);
+    double tb = MPI_Wtime();
+    newton_matrix(ws);
+    tf = MPI_Wtime();
+    ws->W->tjacupdate = (tf - t0) - (tb - ta);
+    ws->W->tjacfactorize = (tb - ta);
 }
 void initialconditions(workspace *W, double *y) {
     for (int i = 0; i < W->P->ny; i++) {
