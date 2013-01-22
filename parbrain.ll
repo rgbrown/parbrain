@@ -5,7 +5,7 @@
 #
 # @ job_type = parallel
 #
-# @ node = 1 
+# @ node = 2 
 # @ tasks_per_node = 32  
 #
 # @ wall_clock_limit = 00:20:00
