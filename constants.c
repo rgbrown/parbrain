@@ -2,7 +2,7 @@
 
 const int NDEFAULT      = 9;
 const int NSUBDEFAULT   = 3;
-const int NSYMBOLS      = 3;
+const int NSYMBOLS      = 4;
 
 const double RMIN       = 10e-6 ;  // m
 const double R0         = 10e-6 ;  // m (for nondimensionalising)

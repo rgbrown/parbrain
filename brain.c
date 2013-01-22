@@ -127,7 +127,9 @@ void init_geometry(workspace *W, int argc, char **argv) {
     W->Np = W->N - W->N0;
 
     // Configure buffer and parameters for MPI_Allgather)
-    W->buf = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
+    W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
+    W->flag = malloc(W->n_procs * sizeof (*W->flag));
+
 }
 int is_power_of_two (unsigned int x) {
       return ((x != 0) && !(x & (x - 1)));
@@ -512,7 +514,7 @@ void compute_uv(workspace *W, double pc) {
     W->gcomm[W->rank] = W->g[W->A->n-1];
 }
 void communicate(workspace *W) {
-    double send_buf[3], *recv_buf;
+    double send_buf[NSYMBOLS], *recv_buf;
 
     recv_buf = W->buf;
 
@@ -520,6 +522,7 @@ void communicate(workspace *W) {
     send_buf[0] = W->ucomm[W->rank];
     send_buf[1] = W->vcomm[W->rank];
     send_buf[2] = W->gcomm[W->rank];
+    send_buf[3] = (double) W->flag[W->rank];
 
     // Fill up the buffer with MPI all-to-all communication
     MPI_Allgather(send_buf, NSYMBOLS, MPI_DOUBLE, recv_buf, NSYMBOLS, MPI_DOUBLE, MPI_COMM_WORLD);
@@ -531,6 +534,7 @@ void communicate(workspace *W) {
             W->ucomm[i] = recv_buf[NSYMBOLS * i    ];
             W->vcomm[i] = recv_buf[NSYMBOLS * i + 1];
             W->gcomm[i] = recv_buf[NSYMBOLS * i + 2];
+            W->flag[i]  = (int) recv_buf[NSYMBOLS * i + 3]; 
         }
     }
 }

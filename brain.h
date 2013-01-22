@@ -115,6 +115,8 @@ typedef struct workspace {
     cs     *J;
     cs     *M;
 
+    int *flag; // buffer for communicating convergence information
+
     /* Model-specific stuff */
     user   *P;
 } workspace;
