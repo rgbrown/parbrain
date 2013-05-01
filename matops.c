@@ -445,7 +445,7 @@ numjac *numjacinit(cs *A) {
     int nrem = n; 
 
     int irem, j, gnum, ig=0, flag;
-    for (gnum = 0; irem > 0; gnum++) { // Loop over number of groups
+    for (gnum = 0; nrem > 0; gnum++) { // Loop over number of groups
         N->r[gnum] = ig; // Group boundary
         // Initialise excluded array to be none
         for (int i = 0; i < m; i++) excluded[i] = 0;
