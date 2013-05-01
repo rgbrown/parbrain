@@ -20,9 +20,6 @@ typedef struct odews {
 void newton_matrix(odews *ws);
 int lusoln(odews *ws, double *b);
 css * newton_sparsity(cs *J);
-void dcopy(int n, const double *x, double *y);
-void daxpy(int n, double a, const double *x, double *y);
-int all(int *x, int n);
 int sizecheck(double *x, int n, double tol);
 void initialconditions(workspace *W, double *y);
 void back_euler(odews *ws);
@@ -34,7 +31,7 @@ int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
     ws = malloc(sizeof *ws);
-    int verbose = 0;
+    int verbose = 1;
 
     // Problem parameters
     ws->gamma  = 1e-1;
@@ -66,6 +63,7 @@ int main(int argc, char **argv) {
     MPI_Finalize();
     return 0;
 }
+
 void back_euler(odews *ws) {
     // Declare additional workspace variables
     double *beta, *w, *x;
@@ -115,9 +113,9 @@ void back_euler(odews *ws) {
             dcopy(ny, w, x);
             daxpy(ny, -1, beta, x);
             daxpy(ny, -ws->gamma, ws->f, x);
-            W->flag[W->rank] = sizecheck(x, ny, ws->ftol); 
+            W->flag[W->rank] = sizecheck(x, ny, ws->ftol); // function value size check
             lusoln(ws, x);  // solve (x is now increment)
-            W->flag[W->rank] |= sizecheck(x, ny, ws->ytol);
+            W->flag[W->rank] |= sizecheck(x, ny, ws->ytol); // increment size check
             daxpy(ny, -1, x, w); // update w with new value
         } // Newton loop
         if (!converged) {
@@ -160,12 +158,6 @@ void initialconditions(workspace *W, double *y) {
         y[i] = 2.;
     }
 }
-int all(int *x, int n) {
-    int tf = 1;
-    for (int i = 0; (i < n) & tf; i++)
-        tf &= x[i];
-    return tf;
-}
 int sizecheck(double *x, int n, double tol) {
     int smallenough = 1;
     for (int i = 0; i < n; i++) {
@@ -174,14 +166,6 @@ int sizecheck(double *x, int n, double tol) {
             break;
     }
     return smallenough;
-}
-void dcopy(int n, const double *x, double *y) {
-    for (int i = 0; i < n; i++)
-        y[i] = x[i];
-}
-void daxpy(int n, double a, const double *x, double *y) {
-    for (int i = 0; i < n; i++) 
-        y[i] += a * x[i];
 }
 css * newton_sparsity(cs *J) {
     // Perform symbolic analysis of the Jacobian for subsequent LU

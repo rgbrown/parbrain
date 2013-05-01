@@ -48,6 +48,20 @@ double mean(double *x, int n) {
     y = y;
     return y;
 }
+void dcopy(int n, const double *x, double *y) {
+    for (int i = 0; i < n; i++)
+        y[i] = x[i];
+}
+void daxpy(int n, double a, const double *x, double *y) {
+    for (int i = 0; i < n; i++) 
+        y[i] += a * x[i];
+}
+int all(int *x, int n) {
+    int tf = 1;
+    for (int i = 0; (i < n) & tf; i++)
+        tf &= x[i];
+    return tf;
+}
 
 /*************************************************************************
  * MATRIX FUNCTIONS:
@@ -409,59 +423,59 @@ cs * mldivide_chol(cs *A, css *S, cs *B) {
     return X;
 }
 numjac *numjacinit(cs *A) {
-    /* Numerical Jacobian routines */
-    int i, j, k, m, n;
-    int irem, nrem, gnum, flag, ig = 0;
-    int *rem, *exc;
-    numjac *N; 
+    // numjacinit computes the column grouping for computing numerical
+    // Jacobians using a greedy algorithm, and initialises the sparse matrix in which the 
+    // numerical Jacobian will reside
     
-    m = A->m; n = A->n;
+
+    // Initialise data structure
+    numjac *N; 
+    int m = A->m; int n = A->n;
     N = malloc(sizeof *N);
     N->g = malloc(n * sizeof (*N->g));
-    N->r = malloc(n * sizeof (*N->r));
+    N->r = malloc(n * sizeof (*N->r)); // Worst case, will be realloced later
 
     /* Initialise arrays */
-    rem = malloc(n * sizeof (*rem));
-    exc = malloc(m * sizeof (*exc));
+    int *remaining, *excluded;
+    remaining = malloc(n * sizeof (*remaining)); // ungrouped columns
+    excluded  = malloc(m * sizeof (*excluded));   
 
-    for (j = 0; j < n; j++) 
-        rem[j] = j;
+    /* Initially, all columns are ungrouped */
+    for (int j = 0; j < n; j++) remaining[j] = j; 
+    int nrem = n; 
 
-    nrem = n; 
-    for (gnum = 0; nrem > 0; gnum++) {
-        N->r[gnum] = ig;
-        for (i = 0; i < m; i++) 
-            exc[i] = 0;
+    int irem, j, gnum, ig=0, flag;
+    for (gnum = 0; irem > 0; gnum++) { // Loop over number of groups
+        N->r[gnum] = ig; // Group boundary
+        // Initialise excluded array to be none
+        for (int i = 0; i < m; i++) excluded[i] = 0;
+
         irem = 0;
-        /* Iterate over ungrouped columns */
-        for (k = 0; k < nrem; k++) {
-            j = rem[k];
-            /* Check all entries of column of A against exc */
+
+        // Iterate over ungrouped columns 
+        for (int k = 0; k < nrem; k++) {
+            j = remaining[k];
             flag = 0;
-            for (i = A->p[j]; i < A->p[j+1]; i++) {
-                if (exc[A->i[i]]) {
-                    flag = 1;
+            for (int idx = A->p[j]; idx < A->p[j+1]; idx++) { // loop over the col of A
+                if (excluded[A->i[idx]]) {
+                    flag = 1; // Row entry already present in excluded
                     break;
                 }
             }
-            if (flag) {
-                rem[irem++] = j;
-            } else {
-                /* Add another entry to the group vector */
-                N->g[ig++] = j;
-
-                /* Add all rows to exc */
-                for (i = A->p[j]; i < A->p[j+1]; i++)
-                    exc[A->i[i]] = 1;
+            if (flag) { // Column can't be added to group, put in remaining for next group
+                remaining[irem++] = j;
+            } else { // Column is added to group
+                N->g[ig++] = j; // add column to group vector
+                for (int idx = A->p[j]; idx < A->p[j+1]; idx++)
+                    excluded[A->i[idx]] = 1; // add all row indices to excluded
             }
         }
         nrem = irem;
     }
     N->r[gnum] = n;
-    N->r = realloc(N->r, (gnum) * sizeof (*N->r));
+    N->r = realloc(N->r, (gnum+1)*sizeof (*N->r)); // remove extra entries
     N->ng = gnum;
-    N->A = matcopy(A);
-    free(rem);
-    free(exc);
+    N->A = matcopy(A); // Create copy of matrix for storing Jacobian
+    free(remaining); free(excluded);
     return N;
 }

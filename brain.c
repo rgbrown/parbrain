@@ -5,10 +5,10 @@
  *     rhs defines the differential equations
  */
 double p0(double t) {
-    double p0;
-    p0 = 1.5;
+    double p0 = 1.5;
     return p0;
 }
+
 void rhs(workspace *W, double t, double *y, double *p, double *dy) {
     double r, f, cb, ct;
     double pt, e, r0, q, g;
@@ -699,6 +699,7 @@ void eval_dfdp(workspace *W, double t, double *y, double *f, double eps) {
             p1[k] = W->p[k];
 
         // Increment entry of h for every entry column in the group 
+        printf("ng: %d ig: %d\n", W->dfdp->ng, igrp);
         for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++) {
             j = W->dfdp->g[k];
             h[j] = eps; // * fabs(W->p[j]);
