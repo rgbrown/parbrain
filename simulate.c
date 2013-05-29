@@ -69,7 +69,7 @@ void back_euler(odews *ws) {
     double *beta, *w, *x;
     workspace *W;
     W = ws->W;
-    int ny = W->P->ny;
+    int ny = W->nu;
     beta = zerosv(ny);
     w    = zerosv(ny);
     x    = zerosv(ny);
@@ -134,8 +134,8 @@ void solver_init(odews *ws, int argc, char **argv) {
     ws->mdeclared = 0;
 
     // Put initial conditions in to y
-    ws->y = zerosv(W->P->ny);
-    ws->f = zerosv(W->P->ny);
+    ws->y = zerosv(W->nu);
+    ws->f = zerosv(W->nu);
     initialconditions(W, ws->y);
 
     // Initial Jacobian computation
@@ -154,7 +154,7 @@ void solver_init(odews *ws, int argc, char **argv) {
     ws->W->tjacfactorize = (tb - ta);
 }
 void initialconditions(workspace *W, double *y) {
-    for (int i = 0; i < W->P->ny; i++) {
+    for (int i = 0; i < W->nu; i++) {
         y[i] = 2.;
     }
 }

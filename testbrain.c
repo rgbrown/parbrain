@@ -1,53 +1,37 @@
 #include "brain.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
-    cs *A, *At, *AAt;
-    css *S;
-    csn *N;
-    double **B;
+    workspace *W;
+    MPI_Init(&argc, &argv);
 
-    printf("\nTesting adjacency\n");
-    A = adjacency(4);
-    B = sparse2dense(A);
-    denseprint(B, A->m, A->n);
-    densefree(B, A->n);
+    W = init(argc, argv);
+    if (W->rank == 0) {
+        spy(W->A0);
+        printf("\n");
+        spy(W->A);
 
-    printf("\nTesting A*A'\n");
-    At = cs_transpose(A, 1);
-    AAt = cs_multiply(A, At);
-    B = sparse2dense(AAt);
-    denseprint(B, AAt->m, AAt->n);
-    densefree(B, AAt->n);
+        printf("N:    %d\n", W->N);
+        printf("Nsub: %d\n", W->Nsub);
+        printf("N0:   %d\n", W->N0);
+        printf("Np:   %d\n", W->Np);
+    }
 
-    printf("\nTesting Cholesky with no reordering\n "
-           "\t(should have same NZ pattern in LT portion as A*A')\n");
-    S = cs_schol(0, AAt);
-    N = cs_chol(AAt, S);
-    B = sparse2dense(N->L);
-    denseprint(B, N->L->m, N->L->n);
+    // Test function evaluatios
+    double *u;
+    double *du;
+    u = malloc (W->nu * sizeof(*u));
+    du = malloc (W->nu * sizeof(*du));
+    for (int i = 0; i < W->nblocks; i++) {
+        nvu_ics(u + W->neq*i,0., 0., W->nvu);
+    }
+    evaluate(W, 0, u, du);
+    if (W->rank == 0) {
+        for (int i = 0; i < W->nblocks; i++) {
+            printf("%16f %16f\n", W->x[i], W->y[i]);
+        }
+    }
 
-    /* Obsolete code 
-    printf("\nTesting create_tree\n");
-    E = malloc(sizeof (*E));
-    E->N = 7;
-    E->N_root = 2;
-    E->N_parallel = 4;
-    E->N_sub = 2;
-    create_tree(E);
-    printf("\nA = ");
-    sparseprint(E->A);
-    printf("\nG = ");
-    sparseprint(E->G);
-    printf("level: \n");
-    for (i = 0; i < E->A->n; i++)
-        printf("\t%d\n", E->level[i]);
-
-    printf("\nTesting create_reduced_tree\n");
-    create_reduced_tree(E);
-    printf("\nA_A = ");
-    sparseprint(E->A_A);
-    */
-
+    MPI_Finalize();
     return 0;
 }

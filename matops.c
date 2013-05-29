@@ -188,6 +188,36 @@ cs * vertcat(const cs *A, const cs *B) {
     cs_spfree(C);
     return D;
 }
+cs * blkdiag(const cs *A, int mb, int nb) {
+    // A . . . .
+    // . A . . .
+    // . . A . .
+    // . . . A .
+    // Create block diagonal matrix with A
+
+    cs *B;
+    int m = mb * A->m;
+    int n = nb * A->n;
+    int nblocks = CS_MIN(mb, nb);
+    cs *T; int *Ti; int *Tj; double *Tx;
+    T = cs_spalloc(m, n, nblocks * A->nzmax, 1, 1);
+    Ti = T->i; Tj = T->p; Tx = T->x;
+    int i, j, p, k = 0;
+    for (int iblk = 0; iblk < nblocks; iblk++) {
+        for (j = 0; j < A->n; j++) {
+            for (p = A->p[j]; p < A->p[j+1]; p++) {
+                i = A->i[p];
+                Ti[k] = i + A->m * iblk;
+                Tj[k] = j + A->n * iblk;
+                Tx[k++] = A->x[p];
+            }
+        }
+    }
+    T->nz = k;
+    B = cs_compress(T);
+    cs_spfree(T);
+    return B;
+}
 cs * matcopy(const cs *A) {
     cs *C, *Z;
     /* Easy way: copy by adding zero to it */
@@ -341,6 +371,21 @@ void sparseprint(cs *A) {
     double **B;
     B = sparse2dense(A);
     denseprint(B, A->m, A->n);
+    densefree(B, A->n);
+}
+void spy(cs *A) {
+    double **B;
+    B = sparse2dense(A);
+    for (int i = 0; i < A->m; i++) {
+        printf("\t");
+        for (int j = 0; j < A->n; j++) {
+            if (B[j][i] == 0)
+                printf(". ");
+            else
+                printf("x ");
+        }
+        printf("\n");
+    }
     densefree(B, A->n);
 }
 uint32_t imorton_odd(uint32_t x) {

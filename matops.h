@@ -33,6 +33,7 @@ cs *        spzeros(int m, int n);
 /* Matrix manipulation routines */
 cs *        vertcat(const cs *A, const cs *B);
 cs *        horzcat(const cs *A, const cs *B);
+cs *        blkdiag(const cs *A, int m, int n);
 void        cholsoln(csn *Nu, css *S, int n, double *b, double *x);
 
 /* All dense matrices are in COLUMN major format, A[j] is the j-th column
@@ -42,6 +43,7 @@ cs *        dense2sparse(double **A, int m, int n);
 void        densefree(double **A, int n);
 void        denseprint(double **A, int m, int n);
 void        sparseprint(cs *A);
+void        spy(cs *A);
 void        vecprint(double *v, int n);
 cs *        matcopy(const cs *A);
 cs *        subsref(const cs *A, int *Ii, int *Jj, int ni, int nj);

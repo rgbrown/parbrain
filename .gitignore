@@ -22,6 +22,8 @@ tags
 testbrain
 testmat2
 testmatops
+adjacency
+core
 
 *.err
 *.out
