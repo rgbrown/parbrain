@@ -1,28 +1,28 @@
 #include "nvu.h"
 
 // Constants
-const double HRR        = 0.1   ;  // Nondimensional (thickness to radius ratio)
-const double RSCALE     = 0.6   ;  // Dimensionless
-const double E0         = 66e3  ;  // Pa
-const double EPASSIVE   = 66e3  ;  // Pa
-const double EACTIVE    = 233e3 ;  // Pa
-const double ETA        = 2.8e2 ;  // Pa s
-const double GAMMA      = 5     ;  // nondim
-const double CSTAR      = 3.5   ;  // nondim
-const double TAUM       = 5     ;  // s
-const double PW         = 5e-5  ;  // m s^-1
-const double AVR        = 5e3   ;  // m^2 m^-3
-const double RCAP       = 5e-6  ;  // m
-const double CIN        = 2.2e-2;  // mol m^-3
-const double C0         = 2.2e-2;  // mol m^-3
-const double MNORMAL    = 4e-3  ;  // mol m^-3 s^-1
-const double M0         = 4e-3  ;  // mol m^-3 s^-1
-const double T0         = 1     ;  // s
+static const double HRR        = 0.1   ;  // Nondimensional (thickness to radius ratio)
+static const double RSCALE     = 0.6   ;  // Dimensionless
+static const double E0         = 66e3  ;  // Pa
+static const double EPASSIVE   = 66e3  ;  // Pa
+static const double EACTIVE    = 233e3 ;  // Pa
+static const double ETA        = 2.8e2 ;  // Pa s
+static const double GAMMA      = 5     ;  // nondim
+static const double CSTAR      = 3.5   ;  // nondim
+static const double TAUM       = 5     ;  // s
+static const double PW         = 5e-5  ;  // m s^-1
+static const double AVR        = 5e3   ;  // m^2 m^-3
+static const double RCAP       = 5e-6  ;  // m
+static const double CIN        = 2.2e-2;  // mol m^-3
+static const double C0         = 2.2e-2;  // mol m^-3
+static const double MNORMAL    = 4e-3  ;  // mol m^-3 s^-1
+static const double M0         = 4e-3  ;  // mol m^-3 s^-1
+static const double T0         = 1     ;  // s
 
-const int i_radius  = 0; // radius has to be 0, this is assumed elsewhere
-const int i_cblood  = 1;
-const int i_smc     = 2;
-const int i_ctissue = 3;
+static const int i_radius  = 0; // radius has to be 0, this is assumed elsewhere
+static const int i_cblood  = 1;
+static const int i_smc     = 2;
+static const int i_ctissue = 3;
 
 // nvu_init: this user-supplied function does any precomputation required
 // for the model
@@ -43,6 +43,9 @@ nvu_workspace *nvu_init(void) {
     // Construct sparse matrices containing the sparsity patterns
     // TODO: modify dense2sparse so we can just use two calls to that,
     // rather than this messy code
+    //
+    // If you just define the integer arrays dfdp_pattern and dfdx_pattern
+    // as above, you can leave the following two blocks as they are.
     cs *T;
     T = cs_spalloc(w->neq, 1, 1, 1, 1);
     for (int i = 0; i < w->neq; i++) {
@@ -103,7 +106,7 @@ void *nvu_free(nvu_workspace *w) {
 //      x,y     spatial coordinates, 
 //      p       the pressure at the top of the vessel, 
 //      u       state variables, the first of which is the vessel radius
-//      du      output vector, in the same order
+//      du      output vector, in the same order (already allocated)
 void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_workspace *w) {
     double r, f, cb, ct;
     double pt, e, r0, q, g;
@@ -124,12 +127,19 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     du[i_cblood]  =  w->d1 * q * (1 - cb) + w->d2 * (ct - cb);
     du[i_ctissue] = -w->g1 * (ct - cb) + w->g2;
 }
+
+
+// Time-varying pressure at the root of the tree. 1 is nominal value. If
+// you want to work in unscaled units, make sure you divide by P0
+// afterwards
 double nvu_p0(double t) {
-    // Pressure at the root of the tree. 1 is normal
-    double p0 = 1.5;
+    double p0 = 1.5 * 8000 / P0;
     return p0;
 }
 
+// Initial conditions. If you want spatial inhomegeneity, make it a
+// function of the coordinates x and y. u0 is already allocated, you just
+// need to fill in the entries
 void nvu_ics(double *u0, double x, double y, nvu_workspace *w) {
     u0[i_radius] = 1.;
     u0[i_smc] = 1.;

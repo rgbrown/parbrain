@@ -42,7 +42,7 @@ testmatops: testmatops.c matops.o Makefile
 testmat2: testmat2.c matops.o Makefile
 	$(MPCC) $(CF) $(INC) -o testmat2 testmat2.c matops.o $(CS) -lm
 
-testbrain: testbrain.c matops.o brain.o adjacency.o Makefile
+testbrain: testbrain.c matops.o brain.o adjacency.o nvu.o Makefile
 	$(MPCC) $(CF) $(INC) -o testbrain testbrain.c $(OBJ) $(CS) -lm
 
 simulate: simulate.c matops.o brain.o nvu.o Makefile
