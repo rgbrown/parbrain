@@ -24,7 +24,7 @@ workspace * init(int argc, char **argv) {
     W->jacupdates = 0;
     W->fevals     = 0;
 
-    init_geometry(W, argc, argv);   // Initialise splitting into subtrees and MPI stuff
+    init_parallel(W, argc, argv);   // Initialise splitting into subtrees and MPI stuff
     init_subtree(W);                // Init adjacency matrix and workspace for subtree
     init_roottree(W);               // Same, but for root tree
     set_spatial_coordinates(W);
@@ -93,7 +93,7 @@ void jacupdate(workspace *W, double t, double *u) {
 }
 
 /* Private functions */
-void init_geometry(workspace *W, int argc, char **argv) {
+void init_parallel(workspace *W, int argc, char **argv) {
     // Sort out MPI configuration
     MPI_Comm_size(MPI_COMM_WORLD, &W->n_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &W->rank);
@@ -108,10 +108,6 @@ void init_geometry(workspace *W, int argc, char **argv) {
         W->Nsub = atoi(argv[2]);
     W->N0 = (int) round(log2((double) W->n_procs));
     W->Np = W->N - W->N0;
-
-    // Initialise spatial offsets and things
-
-    // TODO: Work out geometrical offsets and things 
 
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
@@ -132,15 +128,12 @@ void set_spatial_coordinates(workspace *W) {
     nl = 1 << (W->Np - 1) / 2;
     ig = W->rank % mg;
     jg = W->rank / mg;
-    printf("rank: %d mg: %d, ng: %d, ml: %d, nl: %d, ig: %d, jg: %d\n", \
-            W->rank, mg, ng, ml, nl, ig, jg);
 
     delta = 2*L0;
 
     double xoffset, yoffset;
     xoffset = 0.5 * (double) ((2*jg - (ng-1)) * nl) * delta;
     yoffset = 0.5 * (double) ((2*ig - (mg-1)) * ml) * delta;
-    printf("xoffset = %f\nyoffset = %f\n", xoffset, yoffset);
 
     for (int j = 0; j < nl; j++) {
         for (int i = 0; i < ml; i++) {

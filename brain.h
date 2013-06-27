@@ -118,7 +118,7 @@ void    jacupdate(workspace *W, double t, double *y);
 double  p0(double t);
 
 /* Internal methods: shouldn't be used in code outside brain.c */
-void    init_geometry(workspace *W, int argc, char **argv);
+void    init_parallel(workspace *W, int argc, char **argv);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
 //cs     *adjacency(int N);
