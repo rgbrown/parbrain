@@ -135,8 +135,8 @@ void close_io(workspace *W) {
 
 void write_data(workspace *W, double t, double *y) {
     // Write state in vector y to file, with time t
-    
-
+    MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    MPI_File_write(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
 void set_spatial_coordinates(workspace *W) {

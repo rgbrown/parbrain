@@ -83,6 +83,7 @@ void back_euler(odews *ws) {
     int jac_needed = 0;
 
     int converged = 0;
+    write_data(W, t, ws->y);
     for (int i = 0; t < ws->tf; i++) {
         // Perform a Jacobian update if necessary
         if (jac_needed) {
@@ -125,6 +126,7 @@ void back_euler(odews *ws) {
         }
         t = tnext;
         dcopy(ny, w, ws->y); // update y values
+        write_data(W, t, ws->y);
     } // timestep loop
 }
 void solver_init(odews *ws, int argc, char **argv) {
