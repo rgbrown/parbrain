@@ -41,6 +41,8 @@ typedef struct workspace {
     int     neq;    // Number of equations per block
     int     mlocal; // Size of subtree
     int     nlocal; // ..
+    int     mglobal;// Processor grid, number of rows
+    int     nglobal;// Processor grid, number of columns
 
     // Root subtree
     cs      *A0;    // Root adjacency matrix

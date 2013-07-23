@@ -143,12 +143,14 @@ void write_info(workspace *W) {
         FILE *fp;
         // Write the data file
         fp = fopen("info.dat", "w");
-        fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local\n");
+        fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local         m_global        n_global\n");
         fprintf(fp, "%-16d", W->n_procs);
         fprintf(fp, "%-16d", W->nblocks);
         fprintf(fp, "%-16d", W->neq);
         fprintf(fp, "%-16d", W->mlocal);
         fprintf(fp, "%-16d", W->nlocal);
+        fprintf(fp, "%-16d", W->mglobal);
+        fprintf(fp, "%-16d", W->nglobal);
         fprintf(fp, "\n");
         fclose(fp);
     }
@@ -189,6 +191,8 @@ void set_spatial_coordinates(workspace *W) {
     }
     W->mlocal = ml;
     W->nlocal = nl;
+    W->mglobal = mg;
+    W->nglobal = ng;
 }
 int is_power_of_two (unsigned int x) {
       return ((x != 0) && !(x & (x - 1)));
@@ -618,7 +622,6 @@ void eval_dfdp(workspace *W, double t, double *y, double *f, double eps) {
             p1[k] = W->p[k];
 
         // Increment entry of h for every entry column in the group 
-        printf("ng: %d ig: %d\n", W->dfdp->ng, igrp);
         for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++) {
             j = W->dfdp->g[k];
             h[j] = eps; // * fabs(W->p[j]);
