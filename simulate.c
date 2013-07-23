@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
             printf("%4d%4d%4d%12.4e%4d%4d%12.4e%12.4e%12.4e\n", ws->W->N, ws->W->Nsub, ws->W->n_procs, tf - t0, ws->W->fevals, ws->W->jacupdates, ws->W->tfeval, ws->W->tjacupdate, ws->W->tjacfactorize);
         }
     }
+    close_io(ws->W);
     MPI_Finalize();
     return 0;
 }

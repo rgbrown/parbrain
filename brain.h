@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define FILENAMESIZE 128
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846264338327
 #endif
@@ -71,6 +73,8 @@ typedef struct workspace {
     int     rank;
     int     n_procs;
     double  *buf;    // Communication buffer
+    char    *outfilename;
+    MPI_File outfile;
 
     // Geometrical information
     int     N;      // Total number of levels */
@@ -119,6 +123,9 @@ double  p0(double t);
 
 /* Internal methods: shouldn't be used in code outside brain.c */
 void    init_parallel(workspace *W, int argc, char **argv);
+void    init_io(workspace *W);
+void    close_io(workspace *W);
+void    write_data(workspace *W, double t, double *y);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
 //cs     *adjacency(int N);

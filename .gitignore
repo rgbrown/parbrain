@@ -32,3 +32,6 @@ core
 *.ll
 foo.c
 foo.dat
+
+# Simulation data files
+*.dat

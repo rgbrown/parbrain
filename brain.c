@@ -35,6 +35,7 @@ workspace * init(int argc, char **argv) {
     set_conductance(W, 0, 1);       // set scaled conductances
     set_length(W);                  // Initialise the vessel lengths
     init_jacobians(W);              // Initialise Jacobian data structures
+    init_io(W);                     // Initialise output files
 
     return W;
 } 
@@ -112,6 +113,30 @@ void init_parallel(workspace *W, int argc, char **argv) {
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
     W->flag = malloc(W->n_procs * sizeof (*W->flag));
+}
+
+void init_io(workspace *W) {
+    // Initialise files for MPI I/O. Requires init_parallel to have been
+    // called first
+ 
+    W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
+    sprintf(W->outfilename, "out%d.dat", W->rank);
+
+    MPI_File_open(MPI_COMM_SELF, W->outfilename, 
+            MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
+
+}
+
+void close_io(workspace *W) {
+    // Close data files
+    MPI_File_close(&W->outfile);
+    free(W->outfilename);
+}
+
+void write_data(workspace *W, double t, double *y) {
+    // Write state in vector y to file, with time t
+    
+
 }
 
 void set_spatial_coordinates(workspace *W) {
