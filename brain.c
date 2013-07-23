@@ -36,6 +36,7 @@ workspace * init(int argc, char **argv) {
     set_length(W);                  // Initialise the vessel lengths
     init_jacobians(W);              // Initialise Jacobian data structures
     init_io(W);                     // Initialise output files
+    write_info(W);                  // Write summary information to disk
 
     return W;
 } 
@@ -126,18 +127,34 @@ void init_io(workspace *W) {
             MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
 
 }
-
-
 void close_io(workspace *W) {
     // Close data files
     MPI_File_close(&W->outfile);
     free(W->outfilename);
 }
-
 void write_data(workspace *W, double t, double *y) {
     // Write state in vector y to file, with time t
     MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
     MPI_File_write(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+}
+void write_info(workspace *W) {
+    // Write the summary info to disk
+    if (W->rank == 0) {
+        FILE *fp;
+        // Write the data file
+        fp = fopen("info.dat", "w");
+        fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local\n");
+        fprintf(fp, "%-16d", W->n_procs);
+        fprintf(fp, "%-16d", W->nblocks);
+        fprintf(fp, "%-16d", W->neq);
+        fprintf(fp, "%-16d", W->mlocal);
+        fprintf(fp, "%-16d", W->nlocal);
+        fprintf(fp, "\n");
+        fclose(fp);
+    }
+    // Write the x and y coordinates to each file
+    MPI_File_write(W->outfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    MPI_File_write(W->outfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
 void set_spatial_coordinates(workspace *W) {
@@ -170,8 +187,8 @@ void set_spatial_coordinates(workspace *W) {
 
         }
     }
-
-
+    W->mlocal = ml;
+    W->nlocal = nl;
 }
 int is_power_of_two (unsigned int x) {
       return ((x != 0) && !(x & (x - 1)));

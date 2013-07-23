@@ -39,6 +39,8 @@ typedef struct workspace {
     int     nblocks;// Number of nvu blocks
     int     nu;     // Number of equations total
     int     neq;    // Number of equations per block
+    int     mlocal; // Size of subtree
+    int     nlocal; // ..
 
     // Root subtree
     cs      *A0;    // Root adjacency matrix
@@ -126,6 +128,7 @@ void    init_parallel(workspace *W, int argc, char **argv);
 void    init_io(workspace *W);
 void    close_io(workspace *W);
 void    write_data(workspace *W, double t, double *y);
+void    write_info(workspace *W);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
 //cs     *adjacency(int N);
