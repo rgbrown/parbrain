@@ -127,6 +127,7 @@ void init_io(workspace *W) {
 
 }
 
+
 void close_io(workspace *W) {
     // Close data files
     MPI_File_close(&W->outfile);
