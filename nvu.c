@@ -125,7 +125,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     du[i_radius]  = -w->a1 * e * (r / r0 - 1.) + w->a2 * r * pt;
     du[i_smc]     = -w->b1 * (f - 1 / (1 + exp(w->gamma * (ct - w->cstar))));
     du[i_cblood]  =  w->d1 * q * (1 - cb) + w->d2 * (ct - cb);
-    du[i_ctissue] = -w->g1 * (ct - cb) + w->g2;
+    du[i_ctissue] = -w->g1 * (ct - cb) + w->g2 + exp(-(x*x + y*y)/0.01);
 }
 
 
