@@ -25,30 +25,34 @@ void initialconditions(workspace *W, double *y);
 void back_euler(odews *ws);
 void solver_init(odews *ws, int argc, char **argv);
 
-
+// Main simulation program 
 int main(int argc, char **argv) {
+    // Initialisation step. Construct and initialise the ODE workspace
     odews *ws;
     MPI_Init(&argc, &argv);
-
     ws = malloc(sizeof *ws);
     int verbose = 1;
 
     // Problem parameters
-    ws->gamma  = 1e-1;
-    ws->t0     = 0.;
-    ws->tf     = 10.;
-    ws->ftol   = 1e-4;
-    ws->ytol   = 1e-4;
+    ws->gamma  = 1e-1; // time step
+    ws->t0     = 0.;   // initial time
+    ws->tf     = 10.;  // final time
+    ws->ftol   = 1e-4; // function evaluation tolerance for Newton convergence
+    ws->ytol   = 1e-4; // relative error tolerance for Newton convergence
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation
-    ws->maxits = 100; // Maximum number of Newton iterations
+    ws->maxits = 100;  // Maximum number of Newton iterations
+
+    // Initialise the solver with all the bits and pieces
     solver_init(ws, argc, argv);
 
+    // Begin computation. t0 and tf just measure elapsed simulation time
     double t0 = MPI_Wtime();
-    back_euler(ws);
+    back_euler(ws); // All of the simulation occurs in here
     double tf = MPI_Wtime();
+
+    // Display diagnostics
     if (ws->W->rank == 0) {
         if (verbose) {
-           
             printf("Levels: %d Subtree size: %d N procs: %d\n", ws->W->N, ws->W->Nsub, ws->W->n_procs);
             printf("Solution time:                %g seconds\n", tf - t0);
             printf("    # fevals:                 %d\n", ws->W->fevals);
@@ -60,13 +64,15 @@ int main(int argc, char **argv) {
             printf("%4d%4d%4d%12.4e%4d%4d%12.4e%12.4e%12.4e\n", ws->W->N, ws->W->Nsub, ws->W->n_procs, tf - t0, ws->W->fevals, ws->W->jacupdates, ws->W->tfeval, ws->W->tjacupdate, ws->W->tjacfactorize);
         }
     }
+    // And clean up
     close_io(ws->W);
     MPI_Finalize();
     return 0;
 }
 
+// Fixed step Backward Euler ODE solver
 void back_euler(odews *ws) {
-    // Declare additional workspace variables
+    // Declare and initialise additional workspace variables
     double *beta, *w, *x;
     workspace *W;
     W = ws->W;
@@ -80,12 +86,13 @@ void back_euler(odews *ws) {
 
     // Initial newton_matrix computation
     newton_matrix(ws);
-    int jac_needed = 0;
+    int jac_needed = 0; // flag to say that Jacobian is current
 
     int converged = 0;
-    write_data(W, t, ws->y);
+    write_data(W, t, ws->y); // Write initial data to file
     for (int i = 0; t < ws->tf; i++) {
-        // Perform a Jacobian update if necessary
+        // Perform a Jacobian update if necessary. This is in sync across
+        // all processors
         if (jac_needed) {
             jacupdate(W, t, ws->y); 
             jac_needed = 0;
@@ -104,7 +111,8 @@ void back_euler(odews *ws) {
             evaluate(W, tnext, w, ws->f); // f = g(w)
 
             // evaluate also exchanges convergence information. If everyone
-            // has converged, then we can stop
+            // has converged, then we can stop. Everyone likewise gets the
+            // request for Jacobian update
             if (all(W->flag, W->n_procs)) {
                 converged = 1;
                 if (k > ws->nconv)
