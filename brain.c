@@ -651,4 +651,11 @@ void rhs(workspace *W, double t, double *u, double *p, double *du) {
         nvu_rhs(t, W->x[i], W->y[i], p[i/2], u + istart, du + istart, W->nvu);
     }
 }
+void set_initial_conditions(workspace *W, double *u){
+    int istart;
+    for (int i = 0; i < W->nblocks; i++) {
+        istart = W->neq * i;
+        nvu_ics(u + istart, W->x[i], W->y[i], W->nvu);
+    }
+}
 

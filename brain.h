@@ -156,6 +156,7 @@ void    eval_dfdx(workspace *W, double t, double *y, double *f, double eps);
 void    eval_dfdp(workspace *W, double t, double *y, double *f, double eps);
 void    eval_dgdx(workspace *W, double t, double *y);
 void    eval_dpdg(workspace *W, double t, double *y);
+void    set_initial_conditions(workspace *W, double *y);
 void    rhs(workspace *W, double t, double *y, double *p, double *dy);
 cs     *mldivide_chol(cs *A, css *S, cs *B);
 

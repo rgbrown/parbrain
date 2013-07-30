@@ -21,7 +21,6 @@ void newton_matrix(odews *ws);
 int lusoln(odews *ws, double *b);
 css * newton_sparsity(cs *J);
 int sizecheck(double *x, int n, double tol);
-void initialconditions(workspace *W, double *y);
 void back_euler(odews *ws);
 void solver_init(odews *ws, int argc, char **argv);
 
@@ -147,7 +146,7 @@ void solver_init(odews *ws, int argc, char **argv) {
     // Put initial conditions in to y
     ws->y = zerosv(W->nu);
     ws->f = zerosv(W->nu);
-    initialconditions(W, ws->y);
+    set_initial_conditions(W, ws->y);
 
     // Initial Jacobian computation
     double t0 = MPI_Wtime();
@@ -163,11 +162,6 @@ void solver_init(odews *ws, int argc, char **argv) {
     tf = MPI_Wtime();
     ws->W->tjacupdate = (tf - t0) - (tb - ta);
     ws->W->tjacfactorize = (tb - ta);
-}
-void initialconditions(workspace *W, double *y) {
-    for (int i = 0; i < W->nu; i++) {
-        y[i] = 2.;
-    }
 }
 int sizecheck(double *x, int n, double tol) {
     int smallenough = 1;
