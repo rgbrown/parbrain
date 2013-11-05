@@ -27,6 +27,7 @@ core
 
 *.err
 *.out
+*.dSYM*
 # Editor temporary files
 *.swp
 *.ll
