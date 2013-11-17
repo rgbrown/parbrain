@@ -46,16 +46,12 @@ classdef Brain < handle
     end
    
     methods
-        
         function S = Brain(varargin)
         %BRAIN constructs the data structure, and initialises the
         %nondimensional parameter groups, etc.
         
             P = parseinputs(varargin{:});
             S = inittree(S, P);
-            % Set unscaled conductances
-            S = setconductance(S, P, 0);
-            S = solve(S, P.PROOT, P.PCAP);
             S = setconductance(S, P, 1);
             S = setparameters(S, P);
             
@@ -83,7 +79,6 @@ classdef Brain < handle
             end
             dy(S.iB)   = S.d1 .* S.q(1:nA) .* (1 - cb) + S.d2 .* (ct - cb);
             dy(S.iT)   = -S.g1 .* (ct - cb) + S.g2;
-            %disp([pt(1), e(1), r(1), r0(1)]); 
         end
         
        
