@@ -29,6 +29,7 @@ classdef Brain < handle
         hstar
         Q0
         P0
+        icp
         pcap
         a1
         a2
@@ -49,48 +50,28 @@ classdef Brain < handle
         function S = Brain(varargin)
         %BRAIN constructs the data structure, and initialises the
         %nondimensional parameter groups, etc.
-        
-            P = parseinputs(varargin{:});
-            S = inittree(S, P);
-            S = setconductance(S, P, 1);
-            S = setparameters(S, P);
-            
-        end
-        function dy = evaluate(S, t, y)
-            nA = S.n - S.m;
-            dy = zeros(size(y));
-            r = y(S.iR);
-            f = y(S.iSMC);
-            cb = y(S.iB);
-            ct = y(S.iT);
-            % Update conductances of autoregulating vessels 
-            S.G(S.iG) = r.^4 ./ S.l;
-            S.solve(S.fp0(t), S.pcap);
-            e = 1 + S.a5 .* f;
-            r0 = S.a3 .* (1 - S.a4 .* f);
-            pt = repmat(S.p(1:((S.m + 1)/2))', 2, 1) + S.pcap; pt = 0.5*pt(:);
-            
-            %pt = S.p(1:nA) - S.pcap;
-            dy(S.iR)   = -S.a1 .* e .* (r ./ r0 - 1) + S.a2 .* r .* pt;
-            if ~S.regdisable || (t < 0)
-            dy(S.iSMC) = -S.b1 .* (f - 1 ./ (1 + exp(S.gamma .* (ct - S.cstar))));
-            else
-                dy(S.iSMC) = 0;
-            end
-            dy(S.iB)   = S.d1 .* S.q(1:nA) .* (1 - cb) + S.d2 .* (ct - cb);
-            dy(S.iT)   = -S.g1 .* (ct - cb) + S.g2;
+            params = parseinputs(varargin{:});
+            S = inittree(S, params);
+            S = setconductance(S, params);
+            S = setparameters(S, params);
         end
         
-       
-           
+        
+        
+        
+        
+        % NVU model
         function S = setparameters(S, P)
             nA = S.n - S.m;
             iA = 1:nA;
-            S.iR = 4*(0:nA-1) + 1;
+            S.iR   = 4*(0:nA-1) + 1;
             S.iSMC = 4*(0:nA-1) + 2;
-            S.iB = 4*(0:nA-1) + 3;
-            S.iT = 4*(0:nA-1) + 4;
-            S.iG = (S.n + 1) * (0:nA-1) + 1;
+            S.iB   = 4*(0:nA-1) + 3;
+            S.iT   = 4*(0:nA-1) + 4;
+            
+            S.iG = (S.n + 1) * (0:nA-1) + 1; % indices into a matrix
+            
+            % Compute dimensionless parameter groups
             S.E0 = P.EPASSIVE;
             S.P0 = P.PROOT;
             S.pcap = P.PCAP / S.P0;
@@ -101,6 +82,7 @@ classdef Brain < handle
             S.M0 = P.MNORMAL;
             S.C0 = P.CIN;
             S.regdisable = P.REGDISABLE;
+            S.icp = P.ICP / P.P0;
             % Vessel wall parameters
             S.a1 = S.E0 * P.T0 * S.Rstar(iA) / (P.ETA * S.R0);
             S.a2 = S.P0 * S.Rstar(iA) * P.T0 ./ (P.ETA * S.hstar(iA));
@@ -126,6 +108,35 @@ classdef Brain < handle
             end
             
         end
+        function dy = evaluate(S, t, y)
+            nA = S.n - S.m;
+            dy = zeros(size(y));
+            r = y(S.iR);
+            f = y(S.iSMC);
+            cb = y(S.iB);
+            ct = y(S.iT);
+            % Update conductances of autoregulating vessels 
+            compute_flow(S, t, y);
+            
+            r0 = S.a3 .* (1 - S.a4 .* f);
+            pt = repmat(S.p(1:((S.m + 1)/2))', 2, 1) + S.pcap; pt = 0.5*pt(:) - S.icp;   
+            dy(S.iR)   = -S.a1 .* (1 + S.a5 .*f) .* (r ./ r0 - 1) + S.a2 .* r .* pt;
+            if ~S.regdisable
+                dy(S.iSMC) = -S.b1 .* (f - 1 ./ (1 + exp(S.gamma .* (ct - S.cstar))));
+            else
+                dy(S.iSMC) = 0;
+            end
+            dy(S.iB)   = S.d1 .* S.q(1:nA) .* (1 - cb) + S.d2 .* (ct - cb);
+            dy(S.iT)   = -S.g1 .* (ct - cb) + S.g2;
+        end
+        
+        function compute_flow(S, t, y)
+            S.G(S.iG) = y(S.iR).^4 ./ S.l;
+            S.solve(S.fp0(t), S.pcap);
+        end
+       
+           
+        
         
         function S = solve(S, pin, pcap)
             S.b(end) = pin;
@@ -157,15 +168,11 @@ classdef Brain < handle
             % Set the conductances
         end
         
-        function S = setconductance(S, P, isscaled)
-            if isscaled
-                r = S.Rstar / P.R0;
-                l = S.Lstar / P.L0; %#ok<PROP>
-                S.G = spdiags(r.^4 ./ l, 0, S.n, S.n); %#ok<PROP>
-            else
-                S.G = spdiags(pi * S.Rstar.^4 ./ (8 * P.MU * S.Lstar), 0, S.n, S.n);
-            end
-        end        
+        function S = setconductance(S, params)
+            r = S.Rstar / params.R0;
+            l = S.Lstar / params.L0; %#ok<PROP>
+            S.G = spdiags(r.^4 ./ l, 0, S.n, S.n); %#ok<PROP>
+        end
     end
 end
 function params = parseinputs(varargin)
@@ -184,6 +191,7 @@ p.addParamValue('RSCALE', 0.6); % nondim
 p.addParamValue('RMULT', sqrt(2));
 % Fluid flow
 p.addParamValue('P0', 8000); % Pa
+p.addParamValue('ICP', 3000'); % Pa
 % Arterial wall
 p.addParamValue('E0', 66e3); % Pa
 p.addParamValue('EPASSIVE', 66e3); %Pa
