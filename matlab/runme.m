@@ -17,8 +17,9 @@ opts = odeset('JPattern', J);
 
 [T, Y] = ode15s(fode, [0 500], u0, opts);
 u0 = Y(end, :).';
+tic
 [T, Y] = ode15s(fode, linspace(0, 200, 500), u0, opts);
-
+toc
 plot(T, Y);
 %%
 na = S.n - S.m;
@@ -30,12 +31,15 @@ ngrid = sqrt(na);
 Xg = reshape(x, ngrid, ngrid);
 Yg = reshape(y, ngrid, ngrid);
 Z = reshape(Y(1, ii(idx)), ngrid, ngrid);
-h = surf(Xg, Yg, Z);
-set(gca, 'zlim', [0 5])
-%%
+h = surf(Xg, Yg, Z, 'edgecolor', 'none');
+set(gca, 'zlim', [2.5 4.5])
+caxis([2.5 4.5])
+colormap hot
+set(gcf, 'renderer', 'opengl')
+%% ca
 for i = 1:numel(T)
     set(h, 'ZData', reshape(Y(i, ii(idx)), ngrid, ngrid));
-    pause(0.1);
+    drawnow
     
     
 end
