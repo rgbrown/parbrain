@@ -108,6 +108,7 @@ params = p.Results;
 end
 
 function m = met(t, x, y)
-m = 1 + exp(-(x.^2 + y.^2) / ((200e-5)^2)) * ...
-    exp(-((t - 100) / 50).^2);
+m = ones(size(x));
+% m = 1 + exp(-(x.^2 + y.^2) / ((200e-5)^2)) * ...
+%     exp(-((t - 100) / 50).^2);
 end
