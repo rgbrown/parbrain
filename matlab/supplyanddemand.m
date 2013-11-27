@@ -1,6 +1,6 @@
 %% Demand and supply experiment
 % First create a tree - maybe 13 levels is adequate
-S = TreeSimulator('N', 13, 'RMULT', 1.2);
+S = TreeSimulator('N', 13, 'RMULT', sqrt(2));
 [fnvu, params] = nvu('REGDISABLE', true);
 % Connect the pieces up
 S.fnvu = fnvu;
@@ -9,13 +9,16 @@ S.fp0 = @(t) ones(size(t));
 
 % Right, nice and boring :)
 % Compute an initial condition
-u = ones(S.nnvu * S.nBlocks, 1);
-u(params.iSMC:S.nnvu:end) = 0.5; % Set SMCs half-active
-f = @(t, u) S.evaluate(t, u);
-S.set_jpattern();
-opts = odeset('JPattern', S.JPattern);
-[T, U] = ode15s(f, [0 500], u, opts);
-u0 = U(end, :).';
+[u0, success] = S.computeeq(repmat(0.5, S.nnvu * S.nBlocks, 1));
+%%
+iSMC = params.iSMC:params.nVars:(S.nnvu*S.nBlocks); 
+uh = u0;
+uh(iSMC(1)) = 0;
+[u, success] = S.computeeq(uh);
+
+
+
+%%
 
 S.tree.setconductance(u0(1:S.nnvu:end).^4, 1:S.nBlocks);
 S.tree.solve(1, S.pcap);

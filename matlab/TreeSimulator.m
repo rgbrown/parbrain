@@ -48,7 +48,7 @@ classdef TreeSimulator < handle
             S.x = S.tree.X(1:S.nBlocks);
             S.y = S.tree.Y(1:S.nBlocks);
         end
-        function set_jpattern(S)
+        function setjpattern(S)
             Jb = sparse(ones(S.nnvu * S.NS));
             foo = repmat({Jb},S.nBlocks/S.NS,1);
             S.JPattern = blkdiag(foo{:});
@@ -58,14 +58,44 @@ classdef TreeSimulator < handle
             idx = idx(S.tree.i_spatial);
             idx = reshape(idx, sqrt(S.nBlocks), []);
         end
-        function du = evaluate(S, t, u)
+        function du = evaluate(S, t, u, varargin)
+            if nargin == 4
+                p0 = varargin{1};
+            else
+                p0 = S.fp0(t);
+            end
             % Solve first
             S.tree.setconductance(u(1:S.nnvu:end).^4, 1:S.nBlocks);
-            S.tree.solve(S.fp0(t), S.pcap);
+            S.tree.solve(p0, S.pcap);
             % Compute transmural pressure
             pt = 0.5*(S.tree.p(S.tree.i_parent(1:S.nBlocks)) + S.pcap) ...
                 - S.picp;
             du = S.fnvu(t, u, S.x, S.y, S.tree.q(1:S.nBlocks), pt);
+        end
+        function [u0, success] = computeeq(S, varargin)
+            dT = 200;
+            success = false;
+            maxits = 20;
+            if nargin == 2
+                u0 = varargin{1};
+            else
+                u0 = ones(S.nnvu * S.nBlocks, 1);
+            end
+            f = @(t, u) S.evaluate(t, u, 1);
+            if isempty(S.JPattern)
+                S.setjpattern();
+            end
+            opts = odeset('JPattern', S.JPattern);
+            for i = 1:maxits
+                [~, U] = ode15s(f, [0 dT], u0, opts);
+                u0 = U(end, :).';
+                disp(norm(f(0, u0), inf))
+                if norm(f(0, u0), inf)  < 1e-6
+                    success = true;
+                    
+                    break
+                end
+            end
         end
   
         

@@ -20,7 +20,7 @@ u0 = Y(end, :).';
 tic
 [T, Y] = ode15s(fode, linspace(0, 200, 500), u0, opts);
 toc
-plot(T, Y);
+
 %%
 na = S.n - S.m;
 idx = S.i_spatial;
