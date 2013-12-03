@@ -14,6 +14,7 @@ classdef Htree < handle
         i_spatial
         i_parent
         
+        RMIN
         N
         b
         m
@@ -36,6 +37,7 @@ classdef Htree < handle
             S.b     = zeros(S.n, 1);
             S.p     = zeros(S.m, 1);
             S.q     = zeros(S.n, 1);
+            S.RMIN = params.RMIN;
             S.R = params.RMIN * params.RMULT.^(params.N - S.level - 1); 
             S.L = params.LRR * params.RMIN * ...
                 2.^(floor((params.N - S.level - 1) / 2));
