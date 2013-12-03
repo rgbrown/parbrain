@@ -11,7 +11,7 @@ S.fp0  = @(t) ones(size(t));
 % Find an initial condition
 u = ones(S.nnvu * S.nBlocks, 1);
 f = @(t, u) S.evaluate(t, u);
-S.set_jpattern();
+S.setjpattern();
 opts = odeset('JPattern', S.JPattern);
 [T, U] = ode15s(f, [0 500], u, opts);
 u0 = U(end, :).';
