@@ -49,7 +49,7 @@ classdef Htree < handle
             
             % Set the conductances
         end
-        
+           
         function S = solve(S, pin, pcap)
             S.b(end) = pin;
             S.b(1:(S.n - S.m)) = -pcap;
@@ -77,6 +77,7 @@ classdef Htree < handle
             S.G( (idx - 1) * (S.n + 1) + 1) = g;
         end
         
+            
     end
     
 end
