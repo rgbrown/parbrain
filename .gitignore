@@ -38,3 +38,6 @@ foo.dat
 # Simulation data files
 *.dat
 .DS_Store
+
+# Generated documents
+matlab/html/*
