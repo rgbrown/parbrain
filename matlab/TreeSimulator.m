@@ -65,23 +65,30 @@ classdef TreeSimulator < handle
                 p0 = S.fp0(t);
             end
             % Solve first
-            S.tree.setconductance(u(1:S.nnvu:end).^4, 1:S.nBlocks);
-            S.tree.solve(p0, S.pcap);
+            S.pressureflow(u, p0);
             % Compute transmural pressure
             pt = 0.5*(S.tree.p(S.tree.i_parent(1:S.nBlocks)) + S.pcap) ...
                 - S.picp;
             du = S.fnvu(t, u, S.x, S.y, S.tree.q(1:S.nBlocks), pt);
         end
+        function pressureflow(S, u, p0)
+            S.tree.setconductance(u(1:S.nnvu:end).^4, 1:S.nBlocks);
+            S.tree.solve(p0, S.pcap);
+            
+        end
         function [u0, success] = computeeq(S, varargin)
             dT = 200;
             success = false;
             maxits = 20;
-            if nargin == 2
+            u0 = ones(S.nnvu * S.nBlocks, 1);
+            p0 = 1;
+            if nargin >= 2
                 u0 = varargin{1};
-            else
-                u0 = ones(S.nnvu * S.nBlocks, 1);
             end
-            f = @(t, u) S.evaluate(t, u, 1);
+            if nargin >= 3
+                p0 = varargin{2};
+            end
+            f = @(t, u) S.evaluate(t, u, p0);
             if isempty(S.JPattern)
                 S.setjpattern();
             end
@@ -89,12 +96,14 @@ classdef TreeSimulator < handle
             for i = 1:maxits
                 [~, U] = ode15s(f, [0 dT], u0, opts);
                 u0 = U(end, :).';
-                disp(norm(f(0, u0), inf))
-                if norm(f(0, u0), inf)  < 1e-6
+                if norm(f(0, u0), inf) / norm(u0, inf)  < 1e-4
                     success = true;
                     
                     break
                 end
+            end
+            if success == false
+                warning('Equilibrium not found');
             end
         end
   
@@ -130,7 +139,7 @@ classdef TreeSimulator < handle
         function set.NS(S, val)
             S.NS = val;
             if ~isempty(S.nnvu)
-                S.set_jpattern();
+                S.setjpattern();
             end
         end
         

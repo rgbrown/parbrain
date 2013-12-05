@@ -32,6 +32,7 @@
 N = 11;
 H = Htree('N', N);
 Alpha = linspace(0.1, 0.9, 5);
+% Alpha = linspace(0, 1, 50);
 Rmin = 10e-6;
 Hrr = 20;
 idx = H.m - 2.^(0:N-2) + 1;

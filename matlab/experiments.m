@@ -2,10 +2,10 @@
 
 % Influence of radius multiple on overall tree diameter
 
-mult = linspace(1, 2, 20);
+mult = linspace(0.1, 0.9, 5);
 for i = 1:numel(mult)
-    S = Brain('N', 13, 'RMULT', mult(i));
-    S.solve(1, 0.5);
+    S = Brain('N', 13, 'RMULT', 1/mult(i));
+    S.solve(1, 0);
     q(i) = S.q(end) * S.Q0;
 end
 plot(mult, q)
