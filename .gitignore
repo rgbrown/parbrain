@@ -41,3 +41,7 @@ foo.dat
 
 # Generated documents
 matlab/html/*
+matlab/*eps
+matlab/*jpg
+matlab/alphart2
+matlab/alpha06
