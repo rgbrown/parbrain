@@ -12,13 +12,15 @@ S.fnvu = fnvu;
 S.nnvu = params.nVars;
 S.fp0 = @(t) ones(size(t));
 
+Gamma = [1, 10, 100];
+gammaidx = 1;
 % Compute a baseline initial condition
 u0 = repmat(0.5, S.nnvu * S.nBlocks, 1);
 [u0, success] = S.computeeq(u0);
 S.pressureflow(u0, 1);
 qbase = S.tree.q(1);
 cstar = u0(params.iT);
-gamma = 100;
+gamma = Gamma(gammaidx);
 S.fnvu = nvu('REGDISABLE', true, 'CSTAR', cstar, 'GAMMA', gamma);
 u0 = S.computeeq(u0);
 iq = reshape(S.tree.i_spatial, sqrt(S.nBlocks), []);
@@ -45,6 +47,8 @@ S.fp0 = fp0;
 opts = odeset('JPattern', S.JPattern);
 fn = @(t, u) S.evaluate(t, u);
 [T, U] = ode15s(fn, [0 200], u0, opts);
+UG{gammaidx} = U(:, 1:4);
+TG{gammaidx} = T;
 
 %compute the flow
 Q = zeros(S.nBlocks, size(U, 1));
@@ -52,6 +56,7 @@ for i = 1:size(U, 1);
    S.pressureflow(U(i, :).', fp0(T(i)));
    Q(:, i) = S.tree.q(1:S.nBlocks);
 end
+QG{gammaidx} = Q(1, :);
 %%
 subplot(4, 1, 1)
 plot(T, fp0(T), 'k', 'linewidth', 2);
@@ -87,7 +92,7 @@ end
 %% Now, we'll look at changes with neurological activity levels
 % Create a metabolic function that starts in one corner, and we're just
 % going to plot results for a cross section along one edge
-
+tic
 Radii = [5e-4, 1e-3, 2e-3, 3e-3, 5e-3];
 nr = numel(Radii);
 clear ua p q
@@ -108,10 +113,10 @@ p{i} = S.tree.p;
 q{i} = S.tree.q;
 disp(i)
 end
-
+toc
 %% Generate a batch of graphs
 close all
-dirname = 'alphart2';
+dirname = 'alpha06';
 for i = 1:nr;
 radius = Radii(i);
 fmet = @(t, x, y) 1 + 0.5*exp(-((x - xmax/2).^2 + (y - ymax/2).^2)/(2*radius^2));
