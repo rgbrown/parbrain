@@ -186,7 +186,7 @@ void set_spatial_coordinates(workspace *W) {
                             0.5 * delta * (double) (2*j - (nl - 1));
             W->y[i + ml * j] = yoffset + \
                             0.5 * delta * (double) (2*i - (ml - 1));
-
+	printf("%d x / y coord: %f / %f \n", i + ml * j, W->x[i + ml * j], W->y[i + ml * j]);
         }
     }
     W->mlocal = ml;
@@ -194,6 +194,178 @@ void set_spatial_coordinates(workspace *W) {
     W->mglobal = mg;
     W->nglobal = ng;
 }
+ 
+void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
+
+	int ncols = W->nlocal*W->nglobal;  // j - tissue blocks
+        int nrows = W->mlocal*W->mglobal;  // i - tissue blocks
+    	int npoints_c = (nrows+1) * (ncols+1);  // (corners of each tissue block)
+	int npoints_b = 0; //(1 << W->Np) - 1;  //(points to build branches)
+	int nblocks = nrows * ncols;       // absolute number of tissue blocks / cells (indipendent of parallelisation)
+	int nbranches = (1 << W->Np) - 1;  // number of branches 
+	int nnodes = (1 << (W->Np-1)) - 1; // number of nodes  ?
+	int npoints_bl = nblocks;          // number of points to "build" blocks (corners) ?
+	
+	// TISSUE BLOCKS
+        FILE *vtk_b;
+	char fname[64];
+ 	sprintf(fname, "tissue_blocks%09.0f.vtk",t*1e2);
+        vtk_b = fopen(fname,"w");
+
+        fprintf(vtk_b,"# vtk DataFile Version 3.1\n");
+        fprintf(vtk_b,"Tissue Blocks\n");
+    	fprintf(vtk_b,"ASCII\n");
+    	fprintf(vtk_b,"DATASET UNSTRUCTURED_GRID\n");
+    	fprintf(vtk_b,"\n");
+        
+        // print POINTS 
+	// corners of tissue blocks: 	
+	fprintf(vtk_b,"POINTS %d float\n", npoints_c); 
+        // Point very bottom left, not actual origin:
+        double points_xorigin = - ncols * L0; 
+        double points_yorigin = - nrows * L0;
+	double delta = 2 * L0;
+        for (int j = 0; j <= ncols; j++) {
+		double x_coord = points_xorigin + j * delta;
+		for (int i = 0; i <= nrows; i++) {
+			double y_coord = points_yorigin + i * delta;
+			fprintf(vtk_b,"%f %f %d\n", x_coord, y_coord, 0); // 2D
+		}
+	}
+
+        // print CELLS (counter-clockwise, starting bottom left):
+	fprintf(vtk_b,"\n");
+	fprintf(vtk_b,"CELLS %d %d\n", (nblocks + npoints_b), (nblocks + npoints_b)*5);
+	for (int b = 0; b < nblocks; b++) {   
+		int col = b / nrows;     // which column are we in?
+		int i = b + col;         // i coord of vtk quad
+		int j = i + nrows + 1;   // j coord of vtk quad
+		int k = j + 1;           // k coord of vtk quad
+		int l = k - (nrows + 1); // l coord of vtk quad
+		fprintf(vtk_b,"%d %d %d %d %d\n", 4, i, j, k, l);
+	}
+	fprintf(vtk_b,"\n\n");
+	fprintf(vtk_b,"CELL_TYPES %d\n",nblocks);
+		for (int i=0; i<nblocks; i++) {
+			fprintf(vtk_b,"%d ", 9);  // cell type 9 = VTK_QUAD
+		}
+	fprintf(vtk_b,"\n\n");
+	// print CELL_DATA:
+	fprintf(vtk_b,"CELL_DATA %d\n", nblocks);
+	fprintf(vtk_b,"SCALARS Radius float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[0 + (W->neq*i)]); // PROBLEM: parallelisation!!!!!!!!
+	} // This is just the radius, but the same code block with
+	//   y[1,2,3... + (W->neq*i)] gives the following state variables!
+	fprintf(vtk_b,"\n\n");	
+	fclose(vtk_b);
+
+	// H-TREE:  ***************************************************************
+    int m = (1 << (N-1)) - 1;
+    int n = (1 << N) - 1;
+
+    // Set the size of the lowest level grid
+    int ncols = 1 << ((N-1)/2); 
+    int nrows = 1 << ((N-1)/2 + (N-1)%2);
+    
+    int a, k = 0;
+    int k1, k2, row = 0, col = (1 << (N-1)); 
+    int xbranch = 0;
+    // int offset = nnodes + 1; // because we have to add the leaf nodes
+    int x, y, z, h1, h2;  // TODO: noch ordentlich zu arrays machen!?
+    for (int i = 0; i < col; i++) {
+	// x[i] = i / 2;
+	y[i] = i; //offset + i; // offset can be added later
+        h1[i] = 0;
+        h2[i] = 0;
+    }
+
+    for (int L = N - 1; L > 0; L--) {
+        a = (1 << N) - (1 << (L+1));
+
+        if (xbranch) {
+            for (int j = 0; j < ncols; j+=2) {
+                for (int i = 0; i < nrows; i++) {
+                    k1 = a + i + j*nrows;
+                    k2 = a + i + (j+1)*nrows;
+                    x[k1] = row; x[k2] = row; y[col] = row; 
+		    h1[col] = k1; // oder was anderes statt k1 & k2?
+		    h2[col] = k2; // s.o.
+		    row++; col++;
+                }
+            }
+            ncols /= 2;
+        } 
+        else {
+            for (int j = 0; j < ncols; j++) {
+                for (int i = 0; i < nrows; i+=2) {
+                    k1 = a + i + j*nrows;
+                    k2 = k1 + 1;
+		    x[k1] = row; x[k2] = row; y[col] = row; 
+		    h1[col] = k1; // s.o.
+		    h2[col] = k2;
+		    row++; col++; 
+                }
+            }
+            nrows /= 2;
+        }
+        xbranch = !xbranch;
+    } // L loop: from bottom level up to the top of the tree (internal nodes)
+    for (int i = 0; i < nnodes; i++) {
+        z1[i] = y[h1[i]];
+        z2[i] = y[h2[i]];
+    }
+
+//********************************
+        FILE *vtk_h;
+	char fname_h[64];
+ 	sprintf(fname_h, "htree%09.0f.vtk",t*1e2);
+        vtk_h = fopen(fname_h,"w");
+
+        fprintf(vtk_h,"# vtk DataFile Version 3.1\n");
+        fprintf(vtk_h,"HTree\n");
+    	fprintf(vtk_h,"ASCII\n");
+    	fprintf(vtk_h,"DATASET UNSTRUCTURED_GRID\n");
+    	fprintf(vtk_h,"\n");
+        
+        // print POINTS 
+	fprintf(vtk_h,"POINTS %d float\n", npoints_bl); 
+	//leafes:	
+	for (int i = 0; i < nblocks; i ++) {
+		fprintf(vtk_h,"%f %f %f\n", W->x[i], W->y[i], 1e-5); 
+	}
+
+
+        // print CELLS (counter-clockwise, starting bottom left):
+	fprintf(vtk_h,"\n");
+	fprintf(vtk_h,"CELLS %d %d\n", npoints_bl, (npoints_bl*2));
+	// leafes:
+	for (int b = 0; b < nblocks; b++) {
+		int i = b;
+		fprintf(vtk_h,"%d %d\n", 1, i);
+	}
+	fprintf(vtk_h,"\n\n");
+	fprintf(vtk_h,"CELL_TYPES %d\n", npoints_bl);
+		// leafes:
+		for (int i=0; i<nblocks; i++) {
+			fprintf(vtk_h,"%d ", 1);  // cell type 1 = VTK_VERTEX
+		}
+	fprintf(vtk_h,"\n\n");
+	//print CELL_DATA:
+	fprintf(vtk_h,"CELL_DATA %d\n", npoints_bl);
+	fprintf(vtk_h,"SCALARS Points float\n");
+	fprintf(vtk_h,"LOOKUP_TABLE default\n");
+	for (int i=0; i<50; i++) { 
+		fprintf(vtk_h,"%f\n", p[i]);   // wie muss p[] aufgerufen werden???
+	} // in p sind alle Werte fuer Druck in den internal nodes gespeichert. Jeden Zeitschritt hinten drangehaengt? 
+	fprintf(vtk_h,"\n\n");	
+
+	fclose(vtk_h);
+
+}
+//double t, double *y --> &t, y
+
 int is_power_of_two (unsigned int x) {
       return ((x != 0) && !(x & (x - 1)));
 }

@@ -133,7 +133,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 // you want to work in unscaled units, make sure you divide by P0
 // afterwards
 double nvu_p0(double t) {
-    double p0 = 1.5 * 8000 / P0;
+    double p0 = (sin(t)+1) * 8000 / P0; //1.5 * 8000 / P0; //0.5*sin(t)+1.5
     return p0;
 }
 

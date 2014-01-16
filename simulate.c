@@ -5,6 +5,8 @@ typedef struct odews {
     csn *N; // Newton matrix numeric factorisation
     css *S; // Newton matrix sybolic factorisation
     double *y; // Workspace variable
+    double *p; // - hab ich dazugefuegt, funktioniert aber anscheinend so nicht...
+    double *q; // - hab ich dazugefuegt, funktioniert aber anscheinend so nicht...
     double *f; // Workspace variable
     double gamma;
     double t0;
@@ -33,13 +35,13 @@ int main(int argc, char **argv) {
     int verbose = 1;
 
     // Problem parameters
-    ws->gamma  = 1e-1; // time step
+    ws->gamma  = 1e-1; // time step  1e-1
     ws->t0     = 0.;   // initial time
-    ws->tf     = 10.;  // final time
+    ws->tf     = 20.;  // final time  10
     ws->ftol   = 1e-4; // function evaluation tolerance for Newton convergence
     ws->ytol   = 1e-4; // relative error tolerance for Newton convergence
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation
-    ws->maxits = 100;  // Maximum number of Newton iterations
+    ws->maxits = 300;  // Maximum number of Newton iterations 100
 
     // Initialise the solver with all the bits and pieces
     solver_init(ws, argc, argv);
@@ -88,7 +90,8 @@ void back_euler(odews *ws) {
     int jac_needed = 0; // flag to say that Jacobian is current
 
     int converged = 0;
-    write_data(W, t, ws->y); // Write initial data to file
+    write_data(W, t, ws->y); // Write initial data to file 
+    write_vtk(W, t, ws->y, W->p, W->q);
     for (int i = 0; t < ws->tf; i++) {
         // Perform a Jacobian update if necessary. This is in sync across
         // all processors
@@ -133,7 +136,12 @@ void back_euler(odews *ws) {
         }
         t = tnext;
         dcopy(ny, w, ws->y); // update y values
-        write_data(W, t, ws->y);
+        write_data(W, t, ws->y); //ws->p, ws->q);
+        //if (W->rank == 0) {
+		//if (t <= 0.1) {
+		write_vtk(W, t, ws->y, W->p, W->q);
+		//}
+        //}
     } // timestep loop
 }
 void solver_init(odews *ws, int argc, char **argv) {
