@@ -80,6 +80,9 @@ typedef struct workspace {
     char    *outfilename;
     MPI_File outfile;
 
+    // VTK file
+    char    *vtkfilename;
+
     // Geometrical information
     int     N;      // Total number of levels */
     int     Nsub;   // Subtree size for blk-diagonal Jacobian */
@@ -129,8 +132,9 @@ double  p0(double t);
 void    init_parallel(workspace *W, int argc, char **argv);
 void    init_io(workspace *W);
 void    close_io(workspace *W);
-void    write_data(workspace *W, double t, double *y);
+void    write_data(workspace *W, double t, double *y); //double *p, double *q);
 void    write_info(workspace *W);
+void    write_vtk(workspace *W, double t, double *y, double *p, double *q);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
 //cs     *adjacency(int N);
@@ -161,3 +165,29 @@ void    rhs(workspace *W, double t, double *y, double *p, double *dy);
 cs     *mldivide_chol(cs *A, css *S, cs *B);
 
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

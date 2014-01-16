@@ -262,34 +262,33 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	fclose(vtk_b);
 
 	// H-TREE:  ***************************************************************
-    int m = (1 << (N-1)) - 1;
-    int n = (1 << N) - 1;
+    int m = (1 << (W->Np-1)) - 1; // number of internal nodes (was declared before!)
+    int n = (1 << W->Np) - 1;     // number of branches (was declared before!)
 
     // Set the size of the lowest level grid
-    int ncols = 1 << ((N-1)/2); 
-    int nrows = 1 << ((N-1)/2 + (N-1)%2);
+    // int ncols = 1 << ((W->Np-1)/2); 
+    // int nrows = 1 << ((W->Np-1)/2 + (W->Np-1)%2);
     
-    int a, k = 0;
-    int k1, k2, row = 0, col = (1 << (N-1)); 
+    int a, k1, k2, row = 0, col = (1 << (W->Np-1)); 
     int xbranch = 0;
     // int offset = nnodes + 1; // because we have to add the leaf nodes
-    int x, y, z, h1, h2;  // TODO: noch ordentlich zu arrays machen!?
+    int nx[n], ny[n], nz1[m], nz2[m], h1[n], h2[n];  
     for (int i = 0; i < col; i++) {
 	// x[i] = i / 2;
-	y[i] = i; //offset + i; // offset can be added later
+	ny[i] = i; //offset + i; // offset can be added later
         h1[i] = 0;
         h2[i] = 0;
     }
 
-    for (int L = N - 1; L > 0; L--) {
-        a = (1 << N) - (1 << (L+1));
+    for (int L = W->Np - 1; L > 0; L--) {
+        a = (1 << W->Np) - (1 << (L+1));
 
         if (xbranch) {
             for (int j = 0; j < ncols; j+=2) {
                 for (int i = 0; i < nrows; i++) {
                     k1 = a + i + j*nrows;
                     k2 = a + i + (j+1)*nrows;
-                    x[k1] = row; x[k2] = row; y[col] = row; 
+                    nx[k1] = row; nx[k2] = row; ny[col] = row; 
 		    h1[col] = k1; // oder was anderes statt k1 & k2?
 		    h2[col] = k2; // s.o.
 		    row++; col++;
@@ -302,7 +301,7 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
                 for (int i = 0; i < nrows; i+=2) {
                     k1 = a + i + j*nrows;
                     k2 = k1 + 1;
-		    x[k1] = row; x[k2] = row; y[col] = row; 
+		    nx[k1] = row; nx[k2] = row; ny[col] = row; 
 		    h1[col] = k1; // s.o.
 		    h2[col] = k2;
 		    row++; col++; 
@@ -313,8 +312,8 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
         xbranch = !xbranch;
     } // L loop: from bottom level up to the top of the tree (internal nodes)
     for (int i = 0; i < nnodes; i++) {
-        z1[i] = y[h1[i]];
-        z2[i] = y[h2[i]];
+        nz1[i] = ny[h1[i]];
+        nz2[i] = ny[h2[i]];
     }
 
 //********************************
