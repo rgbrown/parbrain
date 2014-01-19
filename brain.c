@@ -262,22 +262,22 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	fclose(vtk_b);
 
 	// H-TREE:  ***************************************************************
-    int m = (1 << (W->Np-1)) - 1; // number of internal nodes (was declared before!)
-    int n = (1 << W->Np) - 1;     // number of branches (was declared before!)
+    int m = (1 << (W->Np-1)) - 1; // number of internal nodes (was declared before! - nnodes)
+    int n = (1 << W->Np) - 1;     // number of branches (was declared before! - nbranches) 
 
-    // Set the size of the lowest level grid
-    // int ncols = 1 << ((W->Np-1)/2); 
-    // int nrows = 1 << ((W->Np-1)/2 + (W->Np-1)%2);
+    double xpoints[nbranches];    // x-coord for points for branches & pressure
+    double ypoints[nbranches];    // y-coord for points for branches & pressure
+    double branches [nbranches];  // branches for flow 
     
     int a, k1, k2, row = 0, col = (1 << (W->Np-1)); 
     int xbranch = 0;
-    // int offset = nnodes + 1; // because we have to add the leaf nodes
-    int nx[n], ny[n], nz1[m], nz2[m], h1[n], h2[n];  
+    int offset = nnodes + 1; // because we have to add the leaf nodes
+    int nx[n], ny[n], nz1[m], nz2[m], h1[m], h2[m];  
     for (int i = 0; i < col; i++) {
 	// x[i] = i / 2;
-	ny[i] = i; //offset + i; // offset can be added later
-        h1[i] = 0;
-        h2[i] = 0;
+	ny[i] = i; // i //offset could also be added later
+        //h1[i] = 0;
+        //h2[i] = 0;
     }
 
     for (int L = W->Np - 1; L > 0; L--) {
@@ -288,9 +288,10 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
                 for (int i = 0; i < nrows; i++) {
                     k1 = a + i + j*nrows;
                     k2 = a + i + (j+1)*nrows;
-                    nx[k1] = row; nx[k2] = row; ny[col] = row; 
-		    h1[col] = k1; // oder was anderes statt k1 & k2?
-		    h2[col] = k2; // s.o.
+                    nx[k1] = row + nblocks; nx[k2] = row + nblocks; ny[col] = row + nblocks; 
+		    //hilf[col] = row; // test
+		    h1[row] = k1; // oder was anderes statt row?
+		    h2[row] = k2; // s.o.
 		    row++; col++;
                 }
             }
@@ -301,9 +302,9 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
                 for (int i = 0; i < nrows; i+=2) {
                     k1 = a + i + j*nrows;
                     k2 = k1 + 1;
-		    nx[k1] = row; nx[k2] = row; ny[col] = row; 
-		    h1[col] = k1; // s.o.
-		    h2[col] = k2;
+		    nx[k1] = row + nblocks; nx[k2] = row + nblocks; ny[col] = row + nblocks; 
+		    h1[row] = k1; // s.o.
+		    h2[row] = k2;
 		    row++; col++; 
                 }
             }
@@ -312,9 +313,20 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
         xbranch = !xbranch;
     } // L loop: from bottom level up to the top of the tree (internal nodes)
     for (int i = 0; i < nnodes; i++) {
-        nz1[i] = ny[h1[i]];
+        nz1[i] = ny[h1[i]];  // offset + ?
         nz2[i] = ny[h2[i]];
     }
+    for (int i = 0; i < nblocks; i++) {
+        xpoints[i] = W->x[i];  // TODO: das funktioniert nur bei nicht parallelisiert
+        ypoints[i] = W->y[i]; 
+
+    }
+    for (int i = nblocks; i < nbranches; i++) {
+        xpoints[i] = (xpoints[nz1[i-nblocks]] + xpoints[nz2[i-nblocks]]) / 2;
+        ypoints[i] = (ypoints[nz1[i-nblocks]] + ypoints[nz2[i-nblocks]]) / 2;
+	//printf("%d: x: %d, y: %d\n" , i, xpoints[i], ypoints[i]);
+    }
+
 
 //********************************
         FILE *vtk_h;
@@ -360,6 +372,16 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	} // in p sind alle Werte fuer Druck in den internal nodes gespeichert. Jeden Zeitschritt hinten drangehaengt? 
 	fprintf(vtk_h,"\n\n");	
 
+    // nx[n], ny[n], nz1[m], nz2[m], h1[n], h2[n];  
+        for (int i = 0; i < n-1; i++) fprintf(vtk_h,"nx: %d\n", nx[i]);  // -1 because node at the edge is not defined (root branch)
+        for (int i = 0; i < n; i++) fprintf(vtk_h,"ny: %d\n", ny[i]); 
+ 
+        for (int i = 0; i < m; i++) fprintf(vtk_h,"h1: %d\n", h1[i]);  
+        for (int i = 0; i < m; i++) fprintf(vtk_h,"h2: %d\n", h2[i]);  
+
+        for (int i = 0; i < m; i++) fprintf(vtk_h,"nz1: %d\n", nz1[i]);  
+        for (int i = 0; i < m; i++) fprintf(vtk_h,"nz2: %d\n", nz2[i]);   
+       	for (int i = 0; i < nbranches; i++) fprintf(vtk_h,"%d: x: %f, y: %f\n" , i, xpoints[i], ypoints[i]);
 	fclose(vtk_h);
 
 }
