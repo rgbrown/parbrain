@@ -341,49 +341,86 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
     	fprintf(vtk_h,"\n");
         
         // print POINTS 
-	fprintf(vtk_h,"POINTS %d float\n", npoints_bl); 
-	//leafes:	
-	for (int i = 0; i < nblocks; i ++) {
-		fprintf(vtk_h,"%f %f %f\n", W->x[i], W->y[i], 1e-5); 
+	fprintf(vtk_h,"POINTS %d float\n", nbranches); 	
+       	for (int i = 0; i < nbranches; i++) {  
+		fprintf(vtk_h,"%f %f %f\n" , xpoints[i], ypoints[i], 1e-5);
 	}
 
-
-        // print CELLS (counter-clockwise, starting bottom left):
+        // print CELLS (branches)
 	fprintf(vtk_h,"\n");
-	fprintf(vtk_h,"CELLS %d %d\n", npoints_bl, (npoints_bl*2));
-	// leafes:
-	for (int b = 0; b < nblocks; b++) {
-		int i = b;
-		fprintf(vtk_h,"%d %d\n", 1, i);
+	fprintf(vtk_h,"CELLS %d %d\n", nbranches-1, (nbranches-1)*3);
+	for (int i = 0; i < nbranches-1; i++) { // -1, because of root branch...
+		fprintf(vtk_h,"%d %d %d\n", 2, nx[i], ny[i]); 
 	}
 	fprintf(vtk_h,"\n\n");
-	fprintf(vtk_h,"CELL_TYPES %d\n", npoints_bl);
-		// leafes:
-		for (int i=0; i<nblocks; i++) {
-			fprintf(vtk_h,"%d ", 1);  // cell type 1 = VTK_VERTEX
-		}
+	fprintf(vtk_h,"CELL_TYPES %d\n", nbranches-1); // s.u.
+	for (int i=0; i<nbranches-1; i++) { // -1, because of root branch...
+		fprintf(vtk_h,"%d ", 3);    // cell type 3 = VTK_LINE
+	}
 	fprintf(vtk_h,"\n\n");
 	//print CELL_DATA:
-	fprintf(vtk_h,"CELL_DATA %d\n", npoints_bl);
-	fprintf(vtk_h,"SCALARS Points float\n");
+	fprintf(vtk_h,"CELL_DATA %d\n", nbranches-1);
+	fprintf(vtk_h,"SCALARS Flow float\n");
 	fprintf(vtk_h,"LOOKUP_TABLE default\n");
-	for (int i=0; i<50; i++) { 
-		fprintf(vtk_h,"%f\n", p[i]);   // wie muss p[] aufgerufen werden???
-	} // in p sind alle Werte fuer Druck in den internal nodes gespeichert. Jeden Zeitschritt hinten drangehaengt? 
+	for (int i=0; i<nbranches-1; i++) { 
+		fprintf(vtk_h,"%f\n", q[i]);   // wie muss p[] aufgerufen werden???
+	} // in p sind alle Werte fuer Druck in den internal nodes gespeichert. Jeden Zeitschritt hinten drangehaengt? Was passiert beim Parallelisieren?
 	fprintf(vtk_h,"\n\n");	
 
     // nx[n], ny[n], nz1[m], nz2[m], h1[n], h2[n];  
-        for (int i = 0; i < n-1; i++) fprintf(vtk_h,"nx: %d\n", nx[i]);  // -1 because node at the edge is not defined (root branch)
-        for (int i = 0; i < n; i++) fprintf(vtk_h,"ny: %d\n", ny[i]); 
+        //for (int i = 0; i < n-1; i++) fprintf(vtk_h,"nx: %d\n", nx[i]);  // -1 because node at the edge is not defined (root branch)
+        //for (int i = 0; i < n; i++) fprintf(vtk_h,"ny: %d\n", ny[i]); 
  
-        for (int i = 0; i < m; i++) fprintf(vtk_h,"h1: %d\n", h1[i]);  
-        for (int i = 0; i < m; i++) fprintf(vtk_h,"h2: %d\n", h2[i]);  
+        //for (int i = 0; i < m; i++) fprintf(vtk_h,"h1: %d\n", h1[i]);  
+        //for (int i = 0; i < m; i++) fprintf(vtk_h,"h2: %d\n", h2[i]);  
 
-        for (int i = 0; i < m; i++) fprintf(vtk_h,"nz1: %d\n", nz1[i]);  
-        for (int i = 0; i < m; i++) fprintf(vtk_h,"nz2: %d\n", nz2[i]);   
-       	for (int i = 0; i < nbranches; i++) fprintf(vtk_h,"%d: x: %f, y: %f\n" , i, xpoints[i], ypoints[i]);
+        //for (int i = 0; i < m; i++) fprintf(vtk_h,"nz1: %d\n", nz1[i]);  
+        //for (int i = 0; i < m; i++) fprintf(vtk_h,"nz2: %d\n", nz2[i]);   
+       	//for (int i = 0; i < nbranches; i++) fprintf(vtk_h,"%d: x: %f, y: %f\n" , i, xpoints[i], ypoints[i]);
 	fclose(vtk_h);
 
+
+// ************ pressure *************
+        FILE *vtk_p;
+	char fname_p[64];
+ 	sprintf(fname_p, "pressure%09.0f.vtk",t*1e2);
+        vtk_p = fopen(fname_p,"w");
+
+        fprintf(vtk_p,"# vtk DataFile Version 3.1\n");
+        fprintf(vtk_p,"Pressure\n");
+    	fprintf(vtk_p,"ASCII\n");
+    	fprintf(vtk_p,"DATASET UNSTRUCTURED_GRID\n");
+    	fprintf(vtk_p,"\n");
+        
+        // print POINTS 
+	fprintf(vtk_p,"POINTS %d float\n", nbranches); 	
+       	for (int i = 0; i < nbranches; i++) {  
+		fprintf(vtk_p,"%f %f %f\n" , xpoints[i], ypoints[i], 1e-5);
+	}
+        // print CELLS (nodes)
+	fprintf(vtk_p,"\n");
+	fprintf(vtk_p,"CELLS %d %d\n", nbranches, nbranches*2);
+	for (int i = 0; i < nbranches; i++) { 
+		fprintf(vtk_p,"%d %d\n", 1, i); 
+	}
+	fprintf(vtk_p,"\n\n");
+	fprintf(vtk_p,"CELL_TYPES %d\n", nbranches); // s.u.
+	for (int i=0; i<nbranches; i++) { 
+		fprintf(vtk_p,"%d ", 1);    // cell type 1 = VTK_VERTEX
+	}
+	fprintf(vtk_p,"\n\n");
+	//print CELL_DATA:
+	fprintf(vtk_p,"CELL_DATA %d\n", nbranches);
+	fprintf(vtk_p,"SCALARS Pressure float\n");
+	fprintf(vtk_p,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) { 
+		fprintf(vtk_p,"%f\n", PCAP/P0);  
+	} 
+	for (int i=nblocks; i<nbranches; i++) {
+		fprintf(vtk_p, "%f\n", p[i-nblocks]);
+	}
+	fprintf(vtk_p,"\n\n");	
+	fclose(vtk_p);
 }
 //double t, double *y --> &t, y
 
