@@ -22,7 +22,7 @@ typedef struct odews {
 void newton_matrix(odews *ws);
 int lusoln(odews *ws, double *b);
 css * newton_sparsity(cs *J);
-int sizecheck(double *x, int n, double tol);
+int sizecheck(double *x, double *x0, int n, double tol);
 void back_euler(odews *ws);
 void solver_init(odews *ws, int argc, char **argv);
 
@@ -74,13 +74,14 @@ int main(int argc, char **argv) {
 // Fixed step Backward Euler ODE solver
 void back_euler(odews *ws) {
     // Declare and initialise additional workspace variables
-    double *beta, *w, *x;
+    double *beta, *w, *x, *x0;
     workspace *W;
     W = ws->W;
     int ny = W->nu;
     beta = zerosv(ny);
     w    = zerosv(ny);
     x    = zerosv(ny);
+    x0   = zerosv(ny);  
 
     double t = ws->t0;
     double tnext;
@@ -125,9 +126,9 @@ void back_euler(odews *ws) {
             dcopy(ny, w, x);
             daxpy(ny, -1, beta, x);
             daxpy(ny, -ws->gamma, ws->f, x);
-            W->flag[W->rank] = sizecheck(x, ny, ws->ftol); // function value size check
+            W->flag[W->rank] = sizecheck(x, x0, ny, ws->ftol); // function value size check
             lusoln(ws, x);  // solve (x is now increment)
-            W->flag[W->rank] |= sizecheck(x, ny, ws->ytol); // increment size check
+            W->flag[W->rank] |= sizecheck(x, x0, ny, ws->ytol); // increment size check
             daxpy(ny, -1, x, w); // update w with new value
         } // Newton loop
         if (!converged) {
@@ -137,7 +138,7 @@ void back_euler(odews *ws) {
         t = tnext;
         dcopy(ny, w, ws->y); // update y values
         write_data(W, t, ws->y); //ws->p, ws->q);
-        //if (W->rank == 0) {
+        //if (W->rank == 0) {   // KATHI TEST
 		//if (t <= 0.1) {
 		write_vtk(W, t, ws->y, W->p, W->q);
 		//}
@@ -171,10 +172,10 @@ void solver_init(odews *ws, int argc, char **argv) {
     ws->W->tjacupdate = (tf - t0) - (tb - ta);
     ws->W->tjacfactorize = (tb - ta);
 }
-int sizecheck(double *x, int n, double tol) {
+int sizecheck(double *x, double *x0, int n, double tol) {
     int smallenough = 1;
     for (int i = 0; i < n; i++) {
-        smallenough &= (fabs(x[i]) < tol);
+        smallenough &= (fabs(x[i] / x0[i]) < tol); //smallenough &= (fabs(x[i] / x0[i % nvars]) < tol); // KATHI TEST
         if (!smallenough)
             break;
     }
