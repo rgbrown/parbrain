@@ -258,12 +258,108 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 		fprintf(vtk_b, "%f\n", y[0 + (W->neq*i)]); // PROBLEM: parallelisation!!!!!!!!
 	} // This is just the radius, but the same code block with
 	//   y[1,2,3... + (W->neq*i)] gives the following state variables!
+		fprintf(vtk_b,"SCALARS [K+]p float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[9 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+		fprintf(vtk_b,"SCALARS w_k float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[10 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS Ca_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[11 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS Ca_SR_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[12 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS v_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[13 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS v_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[13 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}
+ 	fprintf(vtk_b,"SCALARS w_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[14 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}
+ 	fprintf(vtk_b,"SCALARS IP3_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[15 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}
+ 	fprintf(vtk_b,"SCALARS K_i float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[16 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}
+ 	fprintf(vtk_b,"SCALARS Ca_j float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[17 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}
+	fprintf(vtk_b,"SCALARS Ca_ER_j float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[18 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS v_j float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[19 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS IP3_j float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[20 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS Mp float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[21 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}
+	fprintf(vtk_b,"SCALARS AMp float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[22 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS AM float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[23 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
+	}   
 	fprintf(vtk_b,"\n\n");	
 	fclose(vtk_b);
 
 	// H-TREE:  ***************************************************************
-    int m = (1 << (W->Np-1)) - 1; // number of internal nodes (was declared before! - nnodes)
-    int n = (1 << W->Np) - 1;     // number of branches (was declared before! - nbranches) 
+    int m = (1 << (W->Np-1)) - 1; // number of internal nodes (has been declared before! - nnodes)
+    int n = (1 << W->Np) - 1;     // number of branches (has been declared before! - nbranches) 
 
     double xpoints[nbranches];    // x-coord for points for branches & pressure
     double ypoints[nbranches];    // y-coord for points for branches & pressure

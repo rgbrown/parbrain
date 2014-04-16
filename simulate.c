@@ -22,7 +22,7 @@ typedef struct odews {
 void newton_matrix(odews *ws);
 int lusoln(odews *ws, double *b);
 css * newton_sparsity(cs *J);
-int sizecheck(double *x, double *x0, int n, double tol);
+int sizecheck(double *x, int n, double tol);
 void back_euler(odews *ws);
 void solver_init(odews *ws, int argc, char **argv);
 
@@ -35,13 +35,13 @@ int main(int argc, char **argv) {
     int verbose = 1;
 
     // Problem parameters
-    ws->gamma  = 1e-1; // time step  1e-1
+    ws->gamma  = 1e-5; // time step  1e-1
     ws->t0     = 0.;   // initial time
-    ws->tf     = 20.;  // final time  10
-    ws->ftol   = 1e-4; // function evaluation tolerance for Newton convergence
-    ws->ytol   = 1e-4; // relative error tolerance for Newton convergence
+    ws->tf     = 5;  // final time  10
+    ws->ftol   = 1e-3; // function evaluation tolerance for Newton convergence
+    ws->ytol   = 1e-3; // relative error tolerance for Newton convergence
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation
-    ws->maxits = 300;  // Maximum number of Newton iterations 100
+    ws->maxits = 5;   // Maximum number of Newton iterations 100
 
     // Initialise the solver with all the bits and pieces
     solver_init(ws, argc, argv);
@@ -74,14 +74,13 @@ int main(int argc, char **argv) {
 // Fixed step Backward Euler ODE solver
 void back_euler(odews *ws) {
     // Declare and initialise additional workspace variables
-    double *beta, *w, *x, *x0;
+    double *beta, *w, *x;
     workspace *W;
     W = ws->W;
     int ny = W->nu;
     beta = zerosv(ny);
     w    = zerosv(ny);
     x    = zerosv(ny);
-    x0   = zerosv(ny);  
 
     double t = ws->t0;
     double tnext;
@@ -110,7 +109,7 @@ void back_euler(odews *ws) {
         // Indicate that we haven't converged yet
         W->flag[W->rank] = 0;
         converged = 0;
-        for (int k = 0; k < ws->maxits; k++) {
+        for (int k = 0; k < ws->maxits; k++) {  //
             evaluate(W, tnext, w, ws->f); // f = g(w)
 
             // evaluate also exchanges convergence information. If everyone
@@ -126,9 +125,12 @@ void back_euler(odews *ws) {
             dcopy(ny, w, x);
             daxpy(ny, -1, beta, x);
             daxpy(ny, -ws->gamma, ws->f, x);
-            W->flag[W->rank] = sizecheck(x, x0, ny, ws->ftol); // function value size check
+            for (int la = 0; la < 24; la++) {
+		//printf("iteration %d, state variable %2d - x: %e w: %e\n", k, la, x[la], w[la] );
+	    } // TEST x[0] = radius etc. - w is the state var value, x is passed on to Newton
+            W->flag[W->rank] = sizecheck(x, ny, ws->ftol); // function value size check
             lusoln(ws, x);  // solve (x is now increment)
-            W->flag[W->rank] |= sizecheck(x, x0, ny, ws->ytol); // increment size check
+            W->flag[W->rank] |= sizecheck(x, ny, ws->ytol); // increment size check
             daxpy(ny, -1, x, w); // update w with new value
         } // Newton loop
         if (!converged) {
@@ -138,7 +140,7 @@ void back_euler(odews *ws) {
         t = tnext;
         dcopy(ny, w, ws->y); // update y values
         write_data(W, t, ws->y); //ws->p, ws->q);
-        //if (W->rank == 0) {   // KATHI TEST
+        //if (W->rank == 0) {   // TEST
 		//if (t <= 0.1) {
 		write_vtk(W, t, ws->y, W->p, W->q);
 		//}
@@ -172,14 +174,44 @@ void solver_init(odews *ws, int argc, char **argv) {
     ws->W->tjacupdate = (tf - t0) - (tb - ta);
     ws->W->tjacfactorize = (tb - ta);
 }
-int sizecheck(double *x, double *x0, int n, double tol) {
+int sizecheck(double *x, int n, double tol) { // n - no of equ total (nblocks*nequs)
     int smallenough = 1;
+    double x0[24] = 	{1,   	// 0
+		 	1e-7,	// 1
+			1e-4,	// 2
+			1e-3,	// 3
+			1e-4,	// 4
+			1e-4,	// 5
+			1e-3,	// 6
+			1e-5, 	// 7
+			1e-4,	// 8	
+			1e+3,	// 9
+			1e-4,	// 10
+			1e-1,	// 11 *
+			1.,	// 12
+			1e-1,	// 13
+			1e-1, 	// 14
+			1e-1,	// 15 **
+			1e+5,	// 16
+			1.,	// 17
+			1e-1,	// 18
+			1e1,	// 19 *
+			1.,	// 20 **
+			1e-1,	// 21
+			1e-1,	// 22
+			1e-1};	// 23
     for (int i = 0; i < n; i++) {
-        smallenough &= (fabs(x[i] / x0[i]) < tol); //smallenough &= (fabs(x[i] / x0[i % nvars]) < tol); // KATHI TEST
+ 	    for (int la = 0; la < 24; la++) {
+                // printf("***** tolerance check: var = %d: %e %e  %e \n", la, x[la], x0[la % 24], fabs(x[la] / x0[la % 24])); // TEST
+            }
+        smallenough &= (fabs(x[i] / x0[i % 24]) < tol);  // W->nequ hardcoded
+        //smallenough &= (fabs(x[i]) < tol);
+        //printf("%f \n", x[i]);
         if (!smallenough)
             break;
     }
     return smallenough;
+
 }
 css * newton_sparsity(cs *J) {
     // Perform symbolic analysis of the Jacobian for subsequent LU
