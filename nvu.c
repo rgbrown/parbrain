@@ -436,7 +436,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 
 
     //EC:
-    du[ca_j     ] = flu_c_cpl_j + flu_rho_j * ( flu_ip3_j - flu_ERuptake_j + flu_CICR_j - flu_extrusion_j + flu_leak_j + flu_cation_j + flu_O_j + flu_J_stretch_j) ;
+    du[ca_j     ] = flu_c_cpl_j + flu_rho_j * ( flu_ip3_j - flu_ERuptake_j + flu_CICR_j - flu_extrusion_j + flu_leak_j + flu_cation_j + flu_O_j + flu_J_stretch_j ) ;
     du[ca_er_j  ] = flu_ERuptake_j - flu_CICR_j - flu_leak_j ;
     du[v_j      ] = flu_v_cpl_j - 1/C_m * ( flu_K_j + flu_R_j ) ;
     du[ip3_j    ] = flu_I_cpl_j + J_PLC - flu_degrad_j ;  // **
@@ -445,6 +445,27 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     du[ Mp   ] = K4_c * state_AMp + flu_K1_c * flu_M - (K2_c + K3_c) * state_Mp;
     du[ AMp  ] = K3_c * state_Mp + flu_K6_c * state_AM - (K4_c + K5_c) * state_AMp;
     du[ AM   ] = K5_c * state_AMp - ( K7_c + flu_K6_c ) * state_AM;
+
+    // ***********NO pathway***********
+    // NE:           
+    du[ca_n]       = (((flu_I_Ca)/(2*F*v_spine) - (k_ex * (state_Ca_n - Ca_rest)))/(1+lambda)) ;     //\muM
+    du[nNOS]       = V_maxNOS * flu_CaM / (K_actNOS + flu_CaM) - mu2 * state_nNOS ;                  //\muM
+    du[NOn]        = V_nNOS * LArg / ( pow((pow(LArg,2)+1),0.5) ) * (state(ind.nNOS_act)) - ((state(ind.NOn)-state(ind.NOi))/tau_ni) - (k_O2* pow(state_NOn,2) * On); 
+                         
+    // SMC:              
+    du[NOi]        = (state_NOn - state_NOi) / tau_ni + (state_NOj - state_NOi) / tau_ji - k_dno * state_NOi ; 
+    du[E_b]        = -k1 * state_E_b * state_NOi + k_1 * state_E_6c + flu_k4 * state_E_5c ;     
+    du[E_6c]       = k1 * state_E_b * state_NOi - k_1 * state_E_6c - k2 * state_E_6c - k3 * state_E_6c * state_NOi ;
+    du[E_5c]       = k3 * state_E_6c * state_NOi + k2 * state_E_6c - flu_k4 * state_E_5c ;
+    du[cGMP]       = V_max_sGC * state_E_5c - (k_pde * pow(state_cGMP,2) ) / (K_m_pde + state_cGMP );
+       
+    // EC:
+    du[eNOS]       = ((K_dis * state_ca_j) / (K_eNOS + state_ca_j)) - mu2 * state_eNOS + g_max * flu_F_tau_w ;      // (104)
+    du[NOj]        = V_eNOS*(LArg)/((LArg^2+1)^0.5)*(state(ind.eNOS_act)) - (state(ind.NOj)-state(ind.NOi))/tau_ji   - k_O2*(state(ind.NOj))^2*Oj - state(ind.NOj)*4*3300/(25^2);
+
+
+
+
     
    // printf("** %e** %e** %e** %e** %e** %e** %e** %e** %e** %e ** %e *** \n", L_p, flu_Na_k, flu_K_k, flu_Cl_k, flu_HCO3_k, flu_Na_s, flu_K_s, flu_Cl_s, flu_HCO3_s, X_k, state_R_k);
 
@@ -455,8 +476,8 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 // you want to work in unscaled units, make sure you *multiply* by P0
 // afterwards
 double nvu_p0(double t) {
-    double p0 = 1. * 8000 / P0; // 8000 Pa   original: 1.5 * 8000 / P0;
-    //double p0 = (0.5 * sin(t) + 1) * 8000 / P0; //
+    //double p0 = 1. * 8000 / P0; // 8000 Pa   original: 1.5 * 8000 / P0;
+    double p0 = (0.5 * sin(t) + 1) * 8000 / P0; //
 return p0;
 }
 
@@ -494,6 +515,18 @@ void nvu_ics(double *u0, double x, double y, nvu_workspace *w) {
     u0[Mp]        = 0.25;                      //21
     u0[AMp]       = 0.25;                      //22
     u0[AM]        = 0.25;                      //23
+
+    u0[NOi]       = 0.07;                    //24
+    u0[NOj]       = 0.07;                    //25
+    u0[NOn]       = 0.2;                    //26
+    u0[cGMP]      = 8.8;                    //27
+    u0[eNOS]      = 3.8;                    //28
+    u0[nNOS]      = 0.3;                    //29
+    u0[ca_n]      = 0.1;                    //30
+    u0[E_b]       = 0.3;                    //31  Eb+E6c+E5c=1 !
+    u0[E_6c]      = 0.2;                    //32  
+    u0[E_5c]      = 0.5;                    //33
+
 }
 
 //double Hill(double conc, double Hconst, double power) {
