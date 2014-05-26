@@ -38,6 +38,19 @@ static const int ip3_j     = 20;
 static const int Mp        = 21;
 static const int AMp       = 22;
 static const int AM        = 23;
+// NO pathway
+static const int NOi       = 24;
+static const int NOj       = 25;
+static const int NOn       = 26;
+static const int cGMP      = 27;
+static const int eNOS      = 28;
+static const int nNOS      = 29;
+static const int ca_n      = 30;
+static const int E_b       = 31;
+static const int E_6c      = 32;
+static const int E_5c      = 33;
+
+
 
 
 
@@ -52,30 +65,40 @@ nvu_workspace *nvu_init(void) {
     // drop) or flow term
     int dfdp_pattern[] = {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; // neq * 1 column vector
 
-    int dfdx_pattern[] = {1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,1,1,
-    		              0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,
-    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1}; // column major, neq*neq
+    int dfdx_pattern[] =     {1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    		              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                              1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}; // column major, neq*neq
 
     // Initialise the workspace
     w = malloc(sizeof *w);
@@ -139,7 +162,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 	const double Farad       = 96500         ;// [C mol-1]      Faradays constant
 	const double R_gas       = 8.315         ;// [J mol-1K-1]
 	const double Temp        = 300           ;// [K]
-    const double unitcon     = 1e3        ;// [-]            Factor to convert equations to another unit
+        const double unitcon     = 1e3        ;// [-]            Factor to convert equations to another unit
 
 // NE & AC constants:
     const double L_p         = 2.1e-9        ;// [m uM-1s-1]
@@ -323,6 +346,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     const double v_Ca        = -27; // cGMP and NO dependent
     const double c_wi        = 0; // translation factor for Ca dependence of KCa channel activation sigmoidal [microM] 
     const double bet_i       = 0.13; // translation factor for membrane potential dependence of KCa channel activation sigmoidal [microM2] 
+    const double m =2;
     const double tau_w       = 1; // will be dynamic later
 
 
@@ -334,6 +358,8 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     double state_ca_i, state_ca_sr_i, state_v_i, state_w_i, state_ip3_i, state_K_i; // SMC state
     double state_ca_j, state_ca_er_j, state_v_j, state_ip3_j; // EC state
     double state_Mp, state_AM, state_AMp; // Mech state
+    double state_ca_n, state_nNOS, state_NOn, state_NOi, state_E_b, state_E_6c, state_E_5c, state_cGMP, state_eNOS, state_NOj; // NO pathway state
+
 
     double flu_R_s, flu_N_Cl_s, flu_Na_k, flu_K_k, flu_HCO3_k, flu_Cl_k, flu_Na_s, flu_K_s, flu_HCO3_s, flu_Cl_s, flu_E_Na_k, flu_E_K_k, flu_E_Cl_k, flu_E_NBC_k, flu_E_BK_k, flu_J_NaK_k, flu_v_k, flu_J_KCC1_k, flu_J_NBC_k, flu_J_NKCC1_k, flu_J_Na_k, flu_J_K_k, flu_J_BK_k, flu_w_inf, flu_phi_w; // AC fluxes
     double flu_M, flu_E_K_i, flu_h_r, flu_v_cpl_i, flu_c_cpl_i, flu_I_cpl_i, flu_rho_i, flu_ip3_i, flu_SRuptake_i,
@@ -341,7 +367,9 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     flu_degrad_i, flu_v_KIR_i, flu_G_KIR_i, flu_J_KIR_i, flu_J_stretch_i; // SMC fluxes
     double flu_v_cpl_j, flu_c_cpl_j, flu_I_cpl_j, flu_rho_j, flu_O_j, flu_ip3_j, flu_ERuptake_j, flu_CICR_j,
     flu_extrusion_j, flu_leak_j, flu_cation_j, flu_BKCa_j, flu_SKCa_j, flu_K_j, flu_R_j, flu_degrad_j, flu_J_stretch_j; // EC fluxes
-    double flu_K1_c, flu_K6_c; // Mech
+    double flu_K1_c, flu_K6_c; // Mech fluxes   
+    double flu_P_NR2AO, flu_P_NR2BO, flu_openProbTerm, flu_I_Ca, flu_phi_N, flu_dphi_N, flu_N, flu_CaM, flu_W_tau_w, flu_F_tau_w, flu_k4, flu_R_cGMP1, flu_R_NO, flu_v_Ca3, flu_P_O, flu_R_cGMP2, flu_K2_c, flu_K5_c, flu_kmlcp;    // NO pathway fluxes
+
 
 // BEGIN PARSER
 // State Variables:
@@ -374,6 +402,21 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     state_Mp      = u[Mp];
     state_AMp     = u[AMp];
     state_AM      = u[AM];
+
+// NO pathway
+    state_ca_n    = u[ca_n];
+    state_nNOS    = u[nNOS];
+    state_NOn     = u[NOn];         
+    state_NOi     = u[NOi];
+    state_E_b     = u[E_b];
+    state_E_6c    = u[E_6c];
+    state_E_5c    = u[E_5c];
+    state_cGMP    = u[cGMP];
+    state_eNOS    = u[eNOS];
+    state_NOj     = u[NOj];
+
+
+
 
 
 // end
@@ -473,16 +516,14 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 
 // NO pathway fluxes
 
-Glu = getRef(t,'Glu');
-
-   flu_P_NR2AO         = Glu/(betA+Glu); 
-   flu_P_NR2BO         = Glu/(betB+Glu);
+   flu_P_NR2AO         = nvu_Glu(t,x,y)/(betA+nvu_Glu(t,x,y)); 
+   flu_P_NR2BO         = nvu_Glu(t,x,y)/(betB+nvu_Glu(t,x,y));
    flu_openProbTerm    = 0.63 * flu_P_NR2AO + 11 * flu_P_NR2BO;
-   flu_I_Ca            = (-4*v_n*G_M*P_Ca_P_M*(Ca_ex/M))/(1+exp(-0.08*(v_n+20)))*(exp(2*1e-3*v_n*F/(R*T)))/(1-exp(2*1e-3*v_n*F/(R*T)))*(0.63*flu_P_NR2AO+11*flu_P_NR2BO); 
-   flu_phi_N           = 1 + Q1*state_Ca_n + Q1*Q2*pow(state_Ca_n,2) + Q1*Q2*Q3*pow(state_Ca_n,3) + Q1*Q2*Q3*Q4*pow(state_Ca_n,4);        // (102)
-   flu_dphi_N          = Q1 + 2*Q1*Q2*state_Ca_n + 3*Q1*Q2*Q3*pow(state_Ca_n,2) + 4*Q1*Q2*Q3*Q4*pow(state_Ca_n,3);            // == d(phi_N)/d(ind.Ca_n) ; (part of 101)
-   flu_N               = (state_Ca_n/flu_phi_N)*flu_dphi_N;                                                   // number of Ca2+ bound per calmodulin ; (101)
-   flu_CaM             = state_Ca_n/flu_N;                                      // concentration of calmodulin / calcium complexes ; (100)            
+   flu_I_Ca            = (-4*v_n*G_M*P_Ca_P_M*(Ca_ex/M))/(1+exp(-0.08*(v_n+20)))*(exp(2*1e-3*v_n*Farad/(R_gas*Temp)))/(1-exp(2*1e-3*v_n*Farad/(R_gas*Temp)))*(0.63*flu_P_NR2AO+11*flu_P_NR2BO); 
+   flu_phi_N           = 1 + Q1*state_ca_n + Q1*Q2*pow(state_ca_n,2) + Q1*Q2*Q3*pow(state_ca_n,3) + Q1*Q2*Q3*Q4*pow(state_ca_n,4);        // (102)
+   flu_dphi_N          = Q1 + 2*Q1*Q2*state_ca_n + 3*Q1*Q2*Q3*pow(state_ca_n,2) + 4*Q1*Q2*Q3*Q4*pow(state_ca_n,3);            // == d(phi_N)/d(ind.Ca_n) ; (part of 101)
+   flu_N               = (state_ca_n/flu_phi_N)*flu_dphi_N;                                                   // number of Ca2+ bound per calmodulin ; (101)
+   flu_CaM             = state_ca_n/flu_N;                                      // concentration of calmodulin / calcium complexes ; (100)            
 
    flu_W_tau_w         = W_0*pow((tau_w + sqrt(16*pow(delt_wss,2)+pow(tau_w,2))-4*delt_wss),2) / (tau_w+sqrt(16*pow(delt_wss,2)+pow(tau_w,2))) ; 
    flu_F_tau_w         = (1/(1+alp*exp(-flu_W_tau_w)))-(1/(1+alp)); // -(1/(1+alp)) was added to get no NO at 0 wss (!)
@@ -490,13 +531,13 @@ Glu = getRef(t,'Glu');
    flu_k4             = C_4*pow(state_cGMP,m);
    flu_R_cGMP1        = (pow(state_cGMP,2))/(pow(state_cGMP,2)+pow(K_m_cGMP,2));
    flu_R_NO           = (state_NOi/(state_NOi+K_m_NO)) ;
-   flu_v_Ca3          = -45*log10(state_Ca_i-0.0838) + 223.276*flu_R_cGMP1 - 292.700*flu_R_NO - 198.55;
-   flu_P_O            = pow((state_Ca_i + c_wi ),2)/( pow((state_Ca_i + c_wi ),2) + bet_i*exp(-(state_v_i - flu_v_Ca3) / (R_Kfit)) );
+   flu_v_Ca3          = -45*log10(state_ca_i-0.0838) + 223.276*flu_R_cGMP1 - 292.700*flu_R_NO - 198.55;
+   flu_P_O            = pow((state_ca_i + c_wi ),2)/( pow((state_ca_i + c_wi ),2) + bet_i*exp(-(state_v_i - flu_v_Ca3) / (R_Kfit)) );
    flu_R_cGMP2        = (pow(state_cGMP,2))/(pow(state_cGMP,2)+pow(K_m_mlcp,2));
    flu_K2_c           = 16.88*k_mlcp_b+16.88*k_mlcp_c*flu_R_cGMP2;  // 17.64 / 16.75 errechnet sich aus dem Shift, um K2_c = 0.5 bei der baseline zu bekommen - muss vllt noch geaendert werden! 
    flu_K5_c           = flu_K2_c;
    flu_kmlcp          = k_mlcp_b + k_mlcp_c * flu_R_cGMP2;
-   flu_Kactivation_i  = 0.15/2*(1+tanh((state_cGMP-9.7)))+ (pow((state_Ca_i + c_w ),2) / ( pow((state_Ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) ));
+   flu_Kactivation_i  = 0.15/2*(1+tanh((state_cGMP-9.7)))+ (pow((state_ca_i + c_w ),2) / ( pow((state_ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) ));
 
 
 
@@ -538,9 +579,9 @@ Glu = getRef(t,'Glu');
 
     // ***********NO pathway***********
     // NE:           
-    du[ca_n]       = (((flu_I_Ca)/(2*F*v_spine) - (k_ex * (state_Ca_n - Ca_rest)))/(1+lambda)) ;     //\muM
+    du[ca_n]       = (((flu_I_Ca)/(2*Farad*v_spine) - (k_ex * (state_ca_n - Ca_rest)))/(1+lambda)) ;     //\muM
     du[nNOS]       = V_maxNOS * flu_CaM / (K_actNOS + flu_CaM) - mu2 * state_nNOS ;                  //\muM
-    du[NOn]        = V_nNOS * LArg / ( pow((pow(LArg,2)+1),0.5) ) * (state_nNOS_act) - ((state_NOn-state_NOi)/tau_ni) - (k_O2* pow(state_NOn,2) * On); 
+    du[NOn]        = V_nNOS * LArg / ( pow((pow(LArg,2)+1),0.5) ) * (state_nNOS) - ((state_NOn-state_NOi)/tau_ni) - (k_O2* pow(state_NOn,2) * On); 
                          
     // SMC:              
     du[NOi]        = (state_NOn - state_NOi) / tau_ni + (state_NOj - state_NOi) / tau_ji - k_dno * state_NOi ; 
@@ -551,7 +592,7 @@ Glu = getRef(t,'Glu');
        
     // EC:
     du[eNOS]       = ((K_dis * state_ca_j) / (K_eNOS + state_ca_j)) - mu2 * state_eNOS + g_max * flu_F_tau_w ;      // (104)
-    du[NOj]        = V_eNOS*(LArg)/(pow((pow(LArg,2)+1),0.5))*(state_eNOS_act) - (state_NOj-state_NOi)/tau_ji   - k_O2*pow((state_NOj),2)*Oj - state_NOj*4*3300/(pow(25,2));
+    du[NOj]        = V_eNOS*(LArg)/(pow((pow(LArg,2)+1),0.5))*(state_eNOS) - (state_NOj-state_NOi)/tau_ji - k_O2*pow((state_NOj),2)*Oj - state_NOj*4*3300/(pow(25,2));
 
 
 
@@ -568,9 +609,24 @@ Glu = getRef(t,'Glu');
 double nvu_p0(double t) {
     //double p0 = 1. * 8000 / P0; // 8000 Pa   original: 1.5 * 8000 / P0;
     //double p0 = (0.5 * sin(t) + 1) * 8000 / P0; //
-    1.5 * 8000 / P0;
+    double p0 = 1.5 * 8000 / P0;
 return p0;
 }
+
+// Time-varying Glu input signal
+double nvu_Glu(double t, double x, double y) {
+    double Glu_min = 0;    
+    double Glu_max = 1846; // uM - one vesicle (Santucci)
+    double t_up   = 1; 
+    double t_down = 15;
+    //double Glu = (Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down)))     * (( 0.5 + 0.5 * (tanh(10000*(x-0.0004)+1)))*(1/2 + 1/2*(tanh(10000*(y-0.0004)+1))));
+    //double Glu =  (1/2 + 1/2 *(tanh(10000*(x-0.0004)+1)))*(1/2 + 1/2*(tanh(10000*(y-0.0004)+1)));
+
+    double Glu = ((Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down))))   *    ((1/2 + 1/2 *(tanh(10000*(x-0.0004)+1)))*(1/2 + 1/2*(tanh(10000*(y-0.0004)+1))));
+
+    return Glu;
+}
+
 
 // Initial conditions. If you want spatial inhomegeneity, make it a
 // function of the coordinates x and y. u0 is already allocated, you just
