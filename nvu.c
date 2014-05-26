@@ -79,7 +79,7 @@ nvu_workspace *nvu_init(void) {
 
     // Initialise the workspace
     w = malloc(sizeof *w);
-    w->neq = 24;  // TODO: make sure you have the right no of DEs!
+    w->neq = 34;  // TODO: make sure you have the right no of DEs!
 
     // Construct sparse matrices containing the sparsity patterns
     // TODO: modify dense2sparse so we can just use two calls to that,
@@ -179,7 +179,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     const double z_4 =-1.26e1            ;//[-] parameter fitted on experimental data of Filosa
     const double z_5 =-7.4e-2; //[-] parameter fitted on experimental data of Filosa
     const double Fmax_i		= 0.23;		// (microM/s)
-    const double Kr_i 		= 1; 		// (microM) ; Half saturation constant for agonist-dependent Ca$^{2+}$ entry
+    const double Kr_i 		= 1; 		// (microM) ; Half saturation constant for agonist-dependent Ca entry
     const double G_Ca		= 0.00129;	// (microM/mV/s)
     const double v_Ca1		= 100;		// (mV)
     const double v_Ca2		= -24;		// (mV)
@@ -263,6 +263,67 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     const double K7_c        = 0.1 * C_Hillmann;
     const double gam_cross   = 17 * C_Hillmann;
 
+// NO pathway **********
+
+    const double LArg = 100;
+    const double v_spine = 8e-8;
+    const double k_ex        = 1600;
+    const double Ca_rest     = 0.1; 
+    const double lambda      = 20; 
+    const double V_maxNOS    = 25e-3; 
+    const double V_nNOS      = 1.435;
+    const double K_actNOS    = 9.27e-2; 
+    const double D_NO 		= 3300;	
+    const double dist_ni		= 50;
+    const double k_O2        = 9.6e-6; 
+    const double On          = 200;    
+    const double v_n         = -40;
+    const double G_M         = 46;   
+    const double dist_ji		= 3.75;	
+    const double tau_ni      = pow(dist_ni,2)/(2*D_NO); 
+    const double tau_ji      = pow(dist_ji,2)/(2*D_NO); 
+    const double P_Ca_P_M    = 3.6; 
+    const double Ca_ex       = 2e3;  
+    const double M           = 1.3e5;   
+    const double betA        = 650 ;
+    const double betB        = 2800 ;  
+    const double Q1          = 1.9e5; 
+    const double Q2          = 2.1e5; 
+    const double Q3          = 0.4e5;
+    const double Q4          = 0.26e5; 
+    const double CaM_thresh = Ca_rest/( Ca_rest*(Q1 + 2*Q1*Q2*Ca_rest + 3*Q1*Q2*Q3* pow(Ca_rest,2) + 4*Q1*Q2*Q3*Q4* pow(Ca_rest,3))/ (1 + Q1*Ca_rest + Q1*Q2* pow(Ca_rest,2) + Q1*Q2*Q3* pow(Ca_rest,3) + Q1*Q2*Q3*Q4* pow(Ca_rest,4)) ); // 2.7764e-5; 
+    const double Oj          = 200; 
+    const double K_dis       = 9e-2;  
+    const double K_eNOS      = 4.5e-1; 
+    const double mu2         = 0.0167; 
+    const double g_max       = 0.3;    	
+    const double alp         = 2;    
+    const double W_0         = 1.4;        
+    const double delt_wss    = 2.86 ;  
+    const double V_eNOS      = 0.24;   
+    const double k_dno       = 0.01;  
+    const double k1          = 2e3 ;  
+    const double k2          = 0.1;   
+    const double k3          = 3;  
+    const double k_1         = 100;  
+    const double V_max_sGC   = 0.8520;  //\muM s{-1}; (for m = 2)
+    const double k_pde       = 0.0195;// s{-1} (for m = 2)
+    const double C_4         = 0.011; // [s{-1} microM{-2}] (note: the changing units are correct!) (for m = 2)
+    const double K_m_pde     = 2;           		// [microM]
+    const double R_Kfit      = 30.8; //55;                  // [mV]
+    const double V_cGMP      = 66.9; // 68 ;               // [mV]
+    const double V_NO        = 100;                 // [mV]
+    const double V_b         = 283.7; // 215; (Hannah)                 // [mV]
+    const double K_m_cGMP    = 0.55;       		// [microM]
+    const double K_m_NO      = 0.2;     		    // [microM]
+    const double k_mlcp_b    = 0.0086;         // [s{-1}]
+    const double k_mlcp_c    = 0.0327;          //[s{-1}]
+    const double K_m_mlcp    = 5.5;        		// [microM]
+    const double k_mlck      = 1180;
+    const double v_Ca        = -27; // cGMP and NO dependent
+    const double c_wi        = 0; // translation factor for Ca dependence of KCa channel activation sigmoidal [microM] 
+    const double bet_i       = 0.13; // translation factor for membrane potential dependence of KCa channel activation sigmoidal [microM2] 
+    const double tau_w       = 1; // will be dynamic later
 
 
 //TODO: initialise variables!
@@ -372,10 +433,10 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     flu_NaK_i		    = F_NaK;
     flu_Cl_i		    = G_Cl * (state_v_i - v_Cl);
     flu_K_i			    = G_K * state_w_i * ( state_v_i - vK_i );
-    flu_Kactivation_i   = pow((state_ca_i + c_w),2) / ( pow((state_ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) );
+    //flu_Kactivation_i   = pow((state_ca_i + c_w),2) / ( pow((state_ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) );  // see NO pathway!
     flu_degrad_i	    = k_i * state_ip3_i;
 
-    flu_J_stretch_i     = 0; //G_stretch/(1+exp(-alpha1*(P_str*state_r / flu_h_r - sig0))) * (state_v_i - Esac); // ***
+    flu_J_stretch_i     = 0; //G_stretch/(1+exp(-alpha1*(P_str*state_r / flu_h_r - sig0))) * (state_v_i - Esac); // *** careful! flu_h_r is non-dimensionalised! + dfdt matrix!
 
     flu_v_KIR_i    = z_1 * state_K_p / unitcon + z_2;                                  // mV           state_K_p,
     flu_G_KIR_i    = exp( z_5 * state_v_i + z_3 * state_K_p / unitcon + z_4 );        // pS pF-1 =s-1  state_v_i, state_K_p
@@ -404,11 +465,40 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     flu_R_j 		= G_R * ( state_v_j - v_rest);
     flu_degrad_j 	= k_j * state_ip3_j;
 
-    flu_J_stretch_j       = 0;// G_stretch / (1 + exp(-alpha1*(P_str * state_r / flu_h_r - sig0))) * (state_v_j - Esac);  // *** careful! flu_h_r is non-dimensionalised!
+    flu_J_stretch_j       = 0;// G_stretch / (1 + exp(-alpha1*(P_str * state_r / flu_h_r - sig0))) * (state_v_j - Esac);//careful!flu_h_r is non-dimensionalised! + dfdtmatrix!
 
 // Mech fluxes
     flu_K1_c       = gam_cross * pow(state_ca_i,3);
     flu_K6_c       = flu_K1_c;
+
+// NO pathway fluxes
+
+Glu = getRef(t,'Glu');
+
+   flu_P_NR2AO         = Glu/(betA+Glu); 
+   flu_P_NR2BO         = Glu/(betB+Glu);
+   flu_openProbTerm    = 0.63 * flu_P_NR2AO + 11 * flu_P_NR2BO;
+   flu_I_Ca            = (-4*v_n*G_M*P_Ca_P_M*(Ca_ex/M))/(1+exp(-0.08*(v_n+20)))*(exp(2*1e-3*v_n*F/(R*T)))/(1-exp(2*1e-3*v_n*F/(R*T)))*(0.63*flu_P_NR2AO+11*flu_P_NR2BO); 
+   flu_phi_N           = 1 + Q1*state_Ca_n + Q1*Q2*pow(state_Ca_n,2) + Q1*Q2*Q3*pow(state_Ca_n,3) + Q1*Q2*Q3*Q4*pow(state_Ca_n,4);        // (102)
+   flu_dphi_N          = Q1 + 2*Q1*Q2*state_Ca_n + 3*Q1*Q2*Q3*pow(state_Ca_n,2) + 4*Q1*Q2*Q3*Q4*pow(state_Ca_n,3);            // == d(phi_N)/d(ind.Ca_n) ; (part of 101)
+   flu_N               = (state_Ca_n/flu_phi_N)*flu_dphi_N;                                                   // number of Ca2+ bound per calmodulin ; (101)
+   flu_CaM             = state_Ca_n/flu_N;                                      // concentration of calmodulin / calcium complexes ; (100)            
+
+   flu_W_tau_w         = W_0*pow((tau_w + sqrt(16*pow(delt_wss,2)+pow(tau_w,2))-4*delt_wss),2) / (tau_w+sqrt(16*pow(delt_wss,2)+pow(tau_w,2))) ; 
+   flu_F_tau_w         = (1/(1+alp*exp(-flu_W_tau_w)))-(1/(1+alp)); // -(1/(1+alp)) was added to get no NO at 0 wss (!)
+
+   flu_k4             = C_4*pow(state_cGMP,m);
+   flu_R_cGMP1        = (pow(state_cGMP,2))/(pow(state_cGMP,2)+pow(K_m_cGMP,2));
+   flu_R_NO           = (state_NOi/(state_NOi+K_m_NO)) ;
+   flu_v_Ca3          = -45*log10(state_Ca_i-0.0838) + 223.276*flu_R_cGMP1 - 292.700*flu_R_NO - 198.55;
+   flu_P_O            = pow((state_Ca_i + c_wi ),2)/( pow((state_Ca_i + c_wi ),2) + bet_i*exp(-(state_v_i - flu_v_Ca3) / (R_Kfit)) );
+   flu_R_cGMP2        = (pow(state_cGMP,2))/(pow(state_cGMP,2)+pow(K_m_mlcp,2));
+   flu_K2_c           = 16.88*k_mlcp_b+16.88*k_mlcp_c*flu_R_cGMP2;  // 17.64 / 16.75 errechnet sich aus dem Shift, um K2_c = 0.5 bei der baseline zu bekommen - muss vllt noch geaendert werden! 
+   flu_K5_c           = flu_K2_c;
+   flu_kmlcp          = k_mlcp_b + k_mlcp_c * flu_R_cGMP2;
+   flu_Kactivation_i  = 0.15/2*(1+tanh((state_cGMP-9.7)))+ (pow((state_Ca_i + c_w ),2) / ( pow((state_Ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) ));
+
+
 
 
 // Differential Equations:
@@ -450,7 +540,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     // NE:           
     du[ca_n]       = (((flu_I_Ca)/(2*F*v_spine) - (k_ex * (state_Ca_n - Ca_rest)))/(1+lambda)) ;     //\muM
     du[nNOS]       = V_maxNOS * flu_CaM / (K_actNOS + flu_CaM) - mu2 * state_nNOS ;                  //\muM
-    du[NOn]        = V_nNOS * LArg / ( pow((pow(LArg,2)+1),0.5) ) * (state(ind.nNOS_act)) - ((state(ind.NOn)-state(ind.NOi))/tau_ni) - (k_O2* pow(state_NOn,2) * On); 
+    du[NOn]        = V_nNOS * LArg / ( pow((pow(LArg,2)+1),0.5) ) * (state_nNOS_act) - ((state_NOn-state_NOi)/tau_ni) - (k_O2* pow(state_NOn,2) * On); 
                          
     // SMC:              
     du[NOi]        = (state_NOn - state_NOi) / tau_ni + (state_NOj - state_NOi) / tau_ji - k_dno * state_NOi ; 
@@ -461,7 +551,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
        
     // EC:
     du[eNOS]       = ((K_dis * state_ca_j) / (K_eNOS + state_ca_j)) - mu2 * state_eNOS + g_max * flu_F_tau_w ;      // (104)
-    du[NOj]        = V_eNOS*(LArg)/((LArg^2+1)^0.5)*(state(ind.eNOS_act)) - (state(ind.NOj)-state(ind.NOi))/tau_ji   - k_O2*(state(ind.NOj))^2*Oj - state(ind.NOj)*4*3300/(25^2);
+    du[NOj]        = V_eNOS*(LArg)/(pow((pow(LArg,2)+1),0.5))*(state_eNOS_act) - (state_NOj-state_NOi)/tau_ji   - k_O2*pow((state_NOj),2)*Oj - state_NOj*4*3300/(pow(25,2));
 
 
 
@@ -477,7 +567,8 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 // afterwards
 double nvu_p0(double t) {
     //double p0 = 1. * 8000 / P0; // 8000 Pa   original: 1.5 * 8000 / P0;
-    double p0 = (0.5 * sin(t) + 1) * 8000 / P0; //
+    //double p0 = (0.5 * sin(t) + 1) * 8000 / P0; //
+    1.5 * 8000 / P0;
 return p0;
 }
 
@@ -515,7 +606,7 @@ void nvu_ics(double *u0, double x, double y, nvu_workspace *w) {
     u0[Mp]        = 0.25;                      //21
     u0[AMp]       = 0.25;                      //22
     u0[AM]        = 0.25;                      //23
-
+// NO pathway*****************
     u0[NOi]       = 0.07;                    //24
     u0[NOj]       = 0.07;                    //25
     u0[NOn]       = 0.2;                    //26
