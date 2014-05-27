@@ -377,6 +377,12 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	for (int i=0; i<nblocks; i++) {
 		fprintf(vtk_b, "%f\n", y[30 + (W->neq*i)]); 
 	 	fprintf(vtk_b,"\n\n");
+	} 
+	fprintf(vtk_b,"SCALARS cGMP float\n");  
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[27 + (W->neq*i)]); 
+	 	fprintf(vtk_b,"\n\n");
 	}   
 	fprintf(vtk_b,"\n\n");	
 	fclose(vtk_b);

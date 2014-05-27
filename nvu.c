@@ -501,9 +501,9 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
 
     flu_cation_j 	= G_cat * ( E_Ca - state_v_j) * 0.5 * ( 1 + tanh( ( log10( state_ca_j ) - m3cat )  /  m4cat  ) );
 
-    flu_BKCa_j 		= 0.4/2 * ( 1 + tanh( ( (  log10(state_ca_j) - c) * ( state_v_j - b ) - a1 ) / ( m3b* pow(( state_v_j + a2 * ( log10( state_ca_j ) - c ) - b),2) + m4b ) ) );
+    flu_BKCa_j 		= 0.2 * ( 1 + tanh( ( (  log10(state_ca_j) - c) * ( state_v_j - b ) - a1 ) / ( m3b* pow(( state_v_j + a2 * ( log10( state_ca_j ) - c ) - b),2) + m4b ) ) );
 
-    flu_SKCa_j 		= 0.6/2 * ( 1 + tanh( ( log10(state_ca_j) - m3s ) /  m4s ));
+    flu_SKCa_j 		= 0.3 * ( 1 + tanh( ( log10(state_ca_j) - m3s ) /  m4s ));
     flu_K_j 		= G_tot * ( state_v_j - vK_j ) * ( flu_BKCa_j + flu_SKCa_j ); // Reihenfolge!!
     flu_R_j 		= G_R * ( state_v_j - v_rest);
     flu_degrad_j 	= k_j * state_ip3_j;
@@ -537,7 +537,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
    flu_K2_c           = 16.88*k_mlcp_b+16.88*k_mlcp_c*flu_R_cGMP2;  // 17.64 / 16.75 errechnet sich aus dem Shift, um K2_c = 0.5 bei der baseline zu bekommen - muss vllt noch geaendert werden! 
    flu_K5_c           = flu_K2_c;
    flu_kmlcp          = k_mlcp_b + k_mlcp_c * flu_R_cGMP2;
-   flu_Kactivation_i  = 0.15/2*(1+tanh((state_cGMP-9.7)))+ (pow((state_ca_i + c_w ),2) / ( pow((state_ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) ));
+   flu_Kactivation_i  = 0.075*(1+tanh((state_cGMP-9.7)))+ (pow((state_ca_i + c_w ),2) / ( pow((state_ca_i + c_w),2) + bet*exp(-(state_v_i - v_Ca3)/R_K) ));
 
 
 
@@ -619,11 +619,12 @@ double nvu_Glu(double t, double x, double y) {
     double Glu_max = 1846; // uM - one vesicle (Santucci)
     double t_up   = 1; 
     double t_down = 15;
-    //double Glu = (Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down)))     * (( 0.5 + 0.5 * (tanh(10000*(x-0.0004)+1)))*(1/2 + 1/2*(tanh(10000*(y-0.0004)+1))));
-    //double Glu =  (1/2 + 1/2 *(tanh(10000*(x-0.0004)+1)))*(1/2 + 1/2*(tanh(10000*(y-0.0004)+1)));
+    //double Glu = (Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down)))     * (( 0.5 + 0.5 * (tanh(10000*(x-0.0004)+1)))*(0.5 + 0.5*(tanh(10000*(y-0.0004)+1))));
+    //double Glu =  (0.5 + 0.5 *(tanh(10000*(x-0.0004)+1)))*(0.5 + 0.5*(tanh(10000*(y-0.0004)+1)));
 
-    double Glu = ((Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down))))   *    ((1/2 + 1/2 *(tanh(10000*(x-0.0004)+1)))*(1/2 + 1/2*(tanh(10000*(y-0.0004)+1))));
+    //double Glu = 1846 * ((0.5 + 0.5 *(tanh(10000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(10000*(y-0.0004)+1))));   
 
+    double Glu = ((0.5 + 0.5 *(tanh(10000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(10000*(y-0.0004)+1))))        *          ((Glu_min + (Glu_max - Glu_min) / 2.0 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2.0 * (1 + tanh(t - t_down))));
     return Glu;
 }
 
@@ -633,7 +634,7 @@ double nvu_Glu(double t, double x, double y) {
 // need to fill in the entries
 void nvu_ics(double *u0, double x, double y, nvu_workspace *w) {
 
-    u0[i_radius]  = 1.; //1.*(0.5*sin(x)+1);   //0
+    u0[i_radius]  = 1;   //0
 
     u0[R_k]       = 6.1e-8;                    //1
     u0[N_Na_k]    = 9.9796e-4;                 //2
