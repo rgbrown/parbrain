@@ -209,7 +209,7 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	// TISSUE BLOCKS
         FILE *vtk_b;
 	char fname[64];
- 	sprintf(fname, "tissue_blocks%09.0f.vtk",t*1e2);
+ 	sprintf(fname, "tissue_blocks%09.0f.vtk",t);  //t*1e2
         vtk_b = fopen(fname,"w");
 
         fprintf(vtk_b,"# vtk DataFile Version 3.1\n");
@@ -371,20 +371,32 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	for (int i=0; i<nblocks; i++) {
 		fprintf(vtk_b, "%f\n", y[26 + (W->neq*i)]); 
 	 	fprintf(vtk_b,"\n\n");
-	} 
-	fprintf(vtk_b,"SCALARS Ca_n float\n");  
-	fprintf(vtk_b,"LOOKUP_TABLE default\n");
-	for (int i=0; i<nblocks; i++) {
-		fprintf(vtk_b, "%f\n", y[30 + (W->neq*i)]); 
-	 	fprintf(vtk_b,"\n\n");
-	} 
+	}
 	fprintf(vtk_b,"SCALARS cGMP float\n");  
 	fprintf(vtk_b,"LOOKUP_TABLE default\n");
 	for (int i=0; i<nblocks; i++) {
 		fprintf(vtk_b, "%f\n", y[27 + (W->neq*i)]); 
 	 	fprintf(vtk_b,"\n\n");
-	}   
-	fprintf(vtk_b,"\n\n");	
+	}
+    fprintf(vtk_b,"SCALARS eNOS float\n");
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[28 + (W->neq*i)]);
+	 	fprintf(vtk_b,"\n\n");
+	}
+    fprintf(vtk_b,"SCALARS nNOS float\n");
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[29 + (W->neq*i)]);
+	 	fprintf(vtk_b,"\n\n");
+	}
+    fprintf(vtk_b,"SCALARS Ca_n float\n");
+	fprintf(vtk_b,"LOOKUP_TABLE default\n");
+	for (int i=0; i<nblocks; i++) {
+		fprintf(vtk_b, "%f\n", y[30 + (W->neq*i)]);
+	 	fprintf(vtk_b,"\n\n");
+	}
+	fprintf(vtk_b,"\n\n");
 	fclose(vtk_b);
 
 	// H-TREE:  ***************************************************************
@@ -457,7 +469,7 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 //********************************
         FILE *vtk_h;
 	char fname_h[64];
- 	sprintf(fname_h, "htree%09.0f.vtk",t*1e2);
+ 	sprintf(fname_h, "htree%09.0f.vtk",t);
         vtk_h = fopen(fname_h,"w");
 
         fprintf(vtk_h,"# vtk DataFile Version 3.1\n");
@@ -509,7 +521,7 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 // ************ pressure *************
         FILE *vtk_p;
 	char fname_p[64];
- 	sprintf(fname_p, "pressure%09.0f.vtk",t*1e2);
+ 	sprintf(fname_p, "pressure%09.0f.vtk",t);
         vtk_p = fopen(fname_p,"w");
 
         fprintf(vtk_p,"# vtk DataFile Version 3.1\n");

@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     // Problem parameters
     ws->gamma  = 1e-5; // time step  1e-5
     ws->t0     = 0.;   // initial time 0
-    ws->tf     = 2;  // final time  10
+    ws->tf     = 300;  // final time  10
     ws->ftol   = 1e-3; // function evaluation tolerance for Newton convergence 1e-3
     ws->ytol   = 1e-3; // relative error tolerance for Newton convergence 1e-3
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation 5
@@ -90,7 +90,7 @@ void back_euler(odews *ws) {
     int jac_needed = 0; // flag to say that Jacobian is current
 
     int converged = 0;
-    write_data(W, t, ws->y); // Write initial data to file 
+    //write_data(W, t, ws->y); // Write initial data to file
     write_vtk(W, t, ws->y, W->p, W->q);
     for (int i = 0; t < ws->tf; i++) {
         // Perform a Jacobian update if necessary. This is in sync across
@@ -139,7 +139,7 @@ void back_euler(odews *ws) {
         }
         t = tnext;
         dcopy(ny, w, ws->y); // update y values
-        write_data(W, t, ws->y); //ws->p, ws->q);
+        //write_data(W, t, ws->y); //ws->p, ws->q);
         //if (W->rank == 0) {   // TEST
 		//if (t <= 0.1) {
 		write_vtk(W, t, ws->y, W->p, W->q);

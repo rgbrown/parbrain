@@ -52,7 +52,9 @@ void   nvu_rhs(double t, double x, double y, double p, double *u, double *du, nv
 void  *nvu_free(nvu_workspace *w); 
 
 // Time-varying input pressure function
-double nvu_p0(double t);     
+double nvu_p0(double t);
+
+double nvu_Glu(double t, double x, double y);
 
 // Initial conditions
 void   nvu_ics(double *u0, double x, double y, nvu_workspace *w);

@@ -273,7 +273,7 @@ void nvu_rhs(double t, double x, double y, double p, double *u, double *du, nvu_
     const double v_rest		= -31.1;
     const double k_j		= 0.1;
 
-    const double J_PLC 		= 0.18; //0.4;
+    const double J_PLC 		= 0.18; //0.18
 
     const double g_hat      = 0.5;
     const double p_hat      = 0.05;
@@ -617,14 +617,14 @@ return p0;
 double nvu_Glu(double t, double x, double y) {
     double Glu_min = 0;    
     double Glu_max = 1846; // uM - one vesicle (Santucci)
-    double t_up   = 1; 
-    double t_down = 15;
+    double t_up   = 50;
+    double t_down = 800;
     //double Glu = (Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down)))     * (( 0.5 + 0.5 * (tanh(10000*(x-0.0004)+1)))*(0.5 + 0.5*(tanh(10000*(y-0.0004)+1))));
     //double Glu =  (0.5 + 0.5 *(tanh(10000*(x-0.0004)+1)))*(0.5 + 0.5*(tanh(10000*(y-0.0004)+1)));
 
     //double Glu = 1846 * ((0.5 + 0.5 *(tanh(10000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(10000*(y-0.0004)+1))));   
 
-    double Glu = ((0.5 + 0.5 *(tanh(10000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(10000*(y-0.0004)+1))))        *          ((Glu_min + (Glu_max - Glu_min) / 2.0 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2.0 * (1 + tanh(t - t_down))));
+    double Glu = ((0.5 + 0.5 *(tanh(100000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(100000*(y-0.0004)+1))))        *          ((Glu_min + (Glu_max - Glu_min) / 2.0 * (1 + tanh(10*(t - t_up))) + (Glu_min - Glu_max) / 2.0 * (1 + tanh(10*(t - t_down)))));
     return Glu;
 }
 
