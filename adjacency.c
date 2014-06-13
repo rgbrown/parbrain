@@ -82,7 +82,7 @@ cs * adjacency(int N) {
     T->nz = k;
     A = cs_compress(T);
     cs_spfree(T);
-    cs_print(A,1);
+    //cs_print(A,1);
     return A;
 }
 

@@ -135,6 +135,7 @@ void close_io(workspace *W) {
 void write_data(workspace *W, double t, double *y) {
     // Write state in vector y to file, with time t
     MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    printf("nu = %d\n", W->nu);
     MPI_File_write(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 void write_info(workspace *W) {
@@ -186,7 +187,7 @@ void set_spatial_coordinates(workspace *W) {
                             0.5 * delta * (double) (2*j - (nl - 1));
             W->y[i + ml * j] = yoffset + \
                             0.5 * delta * (double) (2*i - (ml - 1));
-	printf("%d x / y coord: %f / %f \n", i + ml * j, W->x[i + ml * j], W->y[i + ml * j]);
+	//printf("%d x / y coord: %f / %f \n", i + ml * j, W->x[i + ml * j], W->y[i + ml * j]);
         }
     }
     W->mlocal = ml;
@@ -198,8 +199,8 @@ void set_spatial_coordinates(workspace *W) {
 void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 
 	int ncols = W->nlocal*W->nglobal;  // j - tissue blocks
-        int nrows = W->mlocal*W->mglobal;  // i - tissue blocks
-    	int npoints_c = (nrows+1) * (ncols+1);  // (corners of each tissue block)
+    int nrows = W->mlocal*W->mglobal;  // i - tissue blocks
+ 	int npoints_c = (nrows+1) * (ncols+1);  // (corners of each tissue block)
 	int npoints_b = 0; //(1 << W->Np) - 1;  //(points to build branches)
 	int nblocks = nrows * ncols;       // absolute number of tissue blocks / cells (indipendent of parallelisation)
 	int nbranches = (1 << W->Np) - 1;  // number of branches 
@@ -207,7 +208,7 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
 	int npoints_bl = nblocks;          // number of points to "build" blocks (corners) ?
 	
 	// TISSUE BLOCKS
-        FILE *vtk_b;
+    FILE *vtk_b;
 	char fname[64];
  	sprintf(fname, "tissue_blocks%09.0f.vtk",t);  //t*1e2
         vtk_b = fopen(fname,"w");
@@ -218,12 +219,12 @@ void write_vtk(workspace *W, double t, double *y, double *p, double *q) {
     	fprintf(vtk_b,"DATASET UNSTRUCTURED_GRID\n");
     	fprintf(vtk_b,"\n");
         
-        // print POINTS 
+    // print POINTS 
 	// corners of tissue blocks: 	
 	fprintf(vtk_b,"POINTS %d float\n", npoints_c); 
         // Point very bottom left, not actual origin:
-        double points_xorigin = - ncols * L0; 
-        double points_yorigin = - nrows * L0;
+    double points_xorigin = - ncols * L0; 
+    double points_yorigin = - nrows * L0;
 	double delta = 2 * L0;
         for (int j = 0; j <= ncols; j++) {
 		double x_coord = points_xorigin + j * delta;
