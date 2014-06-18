@@ -32,7 +32,6 @@ workspace * init(int argc, char **argv) {
     W->nvu = nvu_init();            // Initialise ODE parameter workspace
     W->neq = W->nvu->neq;
     W->nu  = W->neq * W->nblocks;
-    W->offset = (W->nu) * W->rank + 1; // writing offset (+1 is for time)
     set_conductance(W, 0, 1);       // set scaled conductances
     set_length(W);                  // Initialise the vessel lengths
     init_jacobians(W);              // Initialise Jacobian data structures
@@ -101,58 +100,89 @@ void init_parallel(workspace *W, int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &W->rank);
     assert(is_power_of_two(W->n_procs));
 
-    // Parse input parameters and set tree sizes
+    // Parse input parameters and set tree sizes. There are four N values
+    // that matter: 
+    //     N is the number of levels in the tree (total)
+    //     N0: number of levels in the root subtree
+    //     Np: number of levels in the subtrees corresponding to each
+    //     worker (N0 + Np = N)
+    //     Nsub: number of levels in the small scale subtrees for Jacobian
+    //     computation
     W->N    = NDEFAULT; 
     W->Nsub = NSUBDEFAULT;
     if (argc > 1)
         W->N = atoi(argv[1]);
     if (argc > 2)
         W->Nsub = atoi(argv[2]);
-    W->N0 = (int) round(log2((double) W->n_procs));
-    W->Np = W->N - W->N0;
+    W->N0 = (int) round(log2((double) W->n_procs)); // number of levels in root
+    W->Np = W->N - W->N0; // number of levels in the tree looked after by each worker 
 
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
     W->flag = malloc(W->n_procs * sizeof (*W->flag));
     W->n_writes = 0;
 }
-
 void init_io(workspace *W) {
+    int sizes[2];
+    int subsizes[2];
+    int starts[2];
     // Initialise files for MPI I/O. Requires init_parallel to have been
     // called first
  
+    // Open up file
     W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
     sprintf(W->outfilename, "out.dat");
-
-    /* MPI command for single file per processor 
-    MPI_File_open(MPI_COMM_SELF, W->outfilename, 
-            MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
-    */
     MPI_File_open(MPI_COMM_WORLD, W->outfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
+
+    // Create subarray data type. This assumes column major orderin
+    // (MPI_ORDER_FORTRAN). The factor of W->nu should be moved to
+    // subsizes[1] if row major (MPI_ORDER_C) is desired
+    subsizes[0] = W->mlocal * W->nu; 
+    subsizes[1] = W->nlocal;
+
+    sizes[0] = subsizes[0] * W->mglobal;
+    sizes[1] = subsizes[1] * W->nglobal;
+
+    starts[0] = subsizes[0] * (W->rank % W->mglobal);
+    starts[1] = subsizes[1] * (W->rank / W->mglobal);
+
+    // Create subarray for writing state variables
+    MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_FORTRAN,
+            MPI_DOUBLE, &W->subarray);
+    MPI_Type_commit(&W->subarray);
+
+    // Create subarray for writing single double per block
+    subsizes[0] = W->mlocal;
+    sizes[0] = subsizes[0] * W->mglobal;
+    starts[0] = subsizes[0] * (W->rank % W->mglobal);
+    MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_FORTRAN,
+            MPI_DOUBLE, &W->subarray_single);
+    MPI_Type_commit(&W->subarray_single);
+
+    W->n_writes = 0;
+    W->displacement = 0; // bytes
+    W->displacement_per_write = (sizeof(double)) * (1 + W->nu * W->n_procs); // bytes 
+
 }
 void close_io(workspace *W) {
     // Close data files
+    MPI_Type_free(&W->subarray);
     MPI_File_close(&W->outfile);
     free(W->outfilename);
 }
 void write_data(workspace *W, double t, double *y) {
-    int displacement, offset;
-    // Write state in vector y to file, with time t
-
-    /* MPI Commands previously used for individual files
-    MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
-    MPI_File_write(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
-    */ 
-    //displacement in the file in bytes, not including per-rank offset
-    displacement = W->n_writes * (W->n_procs * W->nu + 1) * sizeof(*y);
-
-    MPI_File_set_view(W->outfile, displacement, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-    if (W->rank == 0) 
-    {
-        MPI_File_write_at(W->outfile, 0, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    // Set view for writing of timestampe
+    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE, MPI_DOUBLE,
+            "native", MPI_INFO_NULL);
+    if (W->rank == 0) {
+        MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
     }
-    MPI_File_write_at(W->outfile, W->offset, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_File_set_view(W->outfile, W->displacement + sizeof(t), MPI_DOUBLE,
+            W->subarray, "native", MPI_INFO_NULL);
+    MPI_File_write_all(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    W->displacement += W->displacement_per_write;
     W->n_writes++;
 }
 void write_info(workspace *W) {
@@ -172,7 +202,21 @@ void write_info(workspace *W) {
         fprintf(fp, "\n");
         fclose(fp);
     }
-    // Write the x and y coordinates to each file
+
+
+    // Write the x and y coordinates to the file
+    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE,
+            W->subarray_single, "native", MPI_INFO_NULL);
+    MPI_File_write_all(W->outfile, W->x, W->nblocks, MPI_DOUBLE,
+            MPI_STATUS_IGNORE);
+    W->displacement += sizeof(*W->x) * W->nblocks * W->n_procs;
+    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE,
+            W->subarray_single, "native", MPI_INFO_NULL);
+    MPI_File_write_all(W->outfile, W->y, W->nblocks, MPI_DOUBLE,
+            MPI_STATUS_IGNORE);
+    W->displacement += sizeof(*W->y) * W->nblocks * W->n_procs;
+
+
     //MPI_File_write(W->outfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
     //MPI_File_write(W->outfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
@@ -185,8 +229,10 @@ void set_spatial_coordinates(workspace *W) {
     int ig, jg;
     double delta;
 
+    // Work out arrangement of workers into mg x ng grid (note mg*ng = P)
     mg = 1 << (l2P / 2);
     ng = 1 << (l2P / 2 + l2P % 2);
+    // Work out how many rows / columns of blocks we have for each worker
     ml = 1 << ((W->Np - 1) / 2 + (W->Np - 1) % 2);
     nl = 1 << (W->Np - 1) / 2;
     ig = W->rank % mg;

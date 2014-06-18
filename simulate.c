@@ -38,12 +38,12 @@ int main(int argc, char **argv) {
     // Problem parameters
     ws->gamma  = 1e-5; // time step  1e-5
     ws->t0     = 0.;   // initial time 0
-    ws->tf     = 10;  // final time  10
+    ws->tf     = 0.1;  // final time  10
     ws->ftol   = 1e-3; // function evaluation tolerance for Newton convergence 1e-3
     ws->ytol   = 1e-3; // relative error tolerance for Newton convergence 1e-3
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation 5
     ws->maxits = 100;   // Maximum number of Newton iterations 100
-    ws->dtwrite = 1e-2; // Time step for writing to file (and screen)
+    ws->dtwrite = 5e-2; // Time step for writing to file (and screen)
 
     // Initialise the solver with all the bits and pieces
     solver_init(ws, argc, argv);

@@ -77,10 +77,13 @@ typedef struct workspace {
     int     rank;
     int     n_procs;
     int     n_writes;
-    int     offset; // per-rank offset for writing
+    int     displacement; // global displacement in output file, in bytes
+    int     displacement_per_write; // bytes written per write (globally)
     double  *buf;    // Communication buffer
     char    *outfilename;
     MPI_File outfile;
+    MPI_Datatype subarray;
+    MPI_Datatype subarray_single;
 
     // VTK file
     char    *vtkfilename;
