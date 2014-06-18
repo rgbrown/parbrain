@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     ws->ytol   = 1e-3; // relative error tolerance for Newton convergence 1e-3
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation 5
     ws->maxits = 100;   // Maximum number of Newton iterations 100
-    ws->dtwrite = 5e-2; // Time step for writing to file (and screen)
+    ws->dtwrite = 1e-2; // Time step for writing to file (and screen)
 
     // Initialise the solver with all the bits and pieces
     solver_init(ws, argc, argv);

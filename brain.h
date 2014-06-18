@@ -76,6 +76,8 @@ typedef struct workspace {
     // MPI Information 
     int     rank;
     int     n_procs;
+    int     n_writes;
+    int     offset; // per-rank offset for writing
     double  *buf;    // Communication buffer
     char    *outfilename;
     MPI_File outfile;

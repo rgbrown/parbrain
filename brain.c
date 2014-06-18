@@ -32,6 +32,7 @@ workspace * init(int argc, char **argv) {
     W->nvu = nvu_init();            // Initialise ODE parameter workspace
     W->neq = W->nvu->neq;
     W->nu  = W->neq * W->nblocks;
+    W->offset = (W->nu) * W->rank + 1; // writing offset (+1 is for time)
     set_conductance(W, 0, 1);       // set scaled conductances
     set_length(W);                  // Initialise the vessel lengths
     init_jacobians(W);              // Initialise Jacobian data structures
@@ -90,7 +91,6 @@ void jacupdate(workspace *W, double t, double *u) {
     W->isjac = 1;
     cs_spfree(Y);
 
-
     free(f);
 }
 
@@ -114,6 +114,7 @@ void init_parallel(workspace *W, int argc, char **argv) {
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
     W->flag = malloc(W->n_procs * sizeof (*W->flag));
+    W->n_writes = 0;
 }
 
 void init_io(workspace *W) {
@@ -121,11 +122,14 @@ void init_io(workspace *W) {
     // called first
  
     W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
-    sprintf(W->outfilename, "out%d.dat", W->rank);
+    sprintf(W->outfilename, "out.dat");
 
+    /* MPI command for single file per processor 
     MPI_File_open(MPI_COMM_SELF, W->outfilename, 
             MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
-
+    */
+    MPI_File_open(MPI_COMM_WORLD, W->outfilename, MPI_MODE_WRONLY |
+            MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
 }
 void close_io(workspace *W) {
     // Close data files
@@ -133,10 +137,23 @@ void close_io(workspace *W) {
     free(W->outfilename);
 }
 void write_data(workspace *W, double t, double *y) {
+    int displacement, offset;
     // Write state in vector y to file, with time t
+
+    /* MPI Commands previously used for individual files
     MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
-    printf("nu = %d\n", W->nu);
     MPI_File_write(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    */ 
+    //displacement in the file in bytes, not including per-rank offset
+    displacement = W->n_writes * (W->n_procs * W->nu + 1) * sizeof(*y);
+
+    MPI_File_set_view(W->outfile, displacement, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
+    if (W->rank == 0) 
+    {
+        MPI_File_write_at(W->outfile, 0, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    }
+    MPI_File_write_at(W->outfile, W->offset, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    W->n_writes++;
 }
 void write_info(workspace *W) {
     // Write the summary info to disk
@@ -156,8 +173,8 @@ void write_info(workspace *W) {
         fclose(fp);
     }
     // Write the x and y coordinates to each file
-    MPI_File_write(W->outfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
-    MPI_File_write(W->outfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    //MPI_File_write(W->outfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    //MPI_File_write(W->outfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
 void set_spatial_coordinates(workspace *W) {

@@ -1,6 +1,8 @@
 MACHINE = $(shell uname -m)
 
-CFALL = $(CFLAGS) $(TARGET_ARCH) -g 
+# -g is for debugging symbols
+# CFALL = $(CFLAGS) $(TARGET_ARCH) -g 
+CFALL = $(CFLAGS) $(TARGET_ARCH)  
 ifeq ($(MACHINE),ppc64)
 	CFARCHDEP = -q64 -qtune=pwr7 -qarch=pwr7 -qhot
 	MPCC = mpcc
