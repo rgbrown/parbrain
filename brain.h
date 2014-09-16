@@ -139,7 +139,6 @@ void    init_io(workspace *W);
 void    close_io(workspace *W);
 void    write_data(workspace *W, double t, double *y); //double *p, double *q);
 void    write_info(workspace *W);
-void    write_vtk(workspace *W, double t, double *y, double *p, double *q);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
 //cs     *adjacency(int N);
