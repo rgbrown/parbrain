@@ -31,7 +31,7 @@ workspace * init(int argc, char **argv) {
     compute_symbchol(W);            // Precompute symbolic factorisations 
     W->nvu = nvu_init();            // Initialise ODE parameter workspace
     W->neq = W->nvu->neq;
-    W->nu  = W->neq * W->nblocks;
+    W->nu  = W->neq * W->nblocks;   // no of state variables per rank
     set_conductance(W, 0, 1);       // set scaled conductances
     set_length(W);                  // Initialise the vessel lengths
     init_jacobians(W);              // Initialise Jacobian data structures
@@ -131,7 +131,8 @@ void init_io(workspace *W) {
  
     // Open up file
     W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
-    sprintf(W->outfilename, "out.dat");
+    // sprintf(W->outfilename, "out.dat");
+    sprintf(W->outfilename, "binary_out_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub );
     MPI_File_open(MPI_COMM_WORLD, W->outfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
 
@@ -172,7 +173,7 @@ void close_io(workspace *W) {
     free(W->outfilename);
 }
 void write_data(workspace *W, double t, double *y) {
-    // Set view for writing of timestampe
+    // Set view for writing of timestamps
     MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE, MPI_DOUBLE,
             "native", MPI_INFO_NULL);
     if (W->rank == 0) {
@@ -185,12 +186,15 @@ void write_data(workspace *W, double t, double *y) {
     W->displacement += W->displacement_per_write;
     W->n_writes++;
 }
+
 void write_info(workspace *W) {
     // Write the summary info to disk
     if (W->rank == 0) {
         FILE *fp;
         // Write the data file
-        fp = fopen("info.dat", "w");
+        char infofilename[sizeof "info_np00_nbif00_lev00.dat"];
+        sprintf(infofilename, "info_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub);
+        fp = fopen(infofilename, "w");
         fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local         m_global        n_global\n");
         fprintf(fp, "%-16d", W->n_procs);
         fprintf(fp, "%-16d", W->nblocks);

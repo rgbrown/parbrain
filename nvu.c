@@ -619,11 +619,7 @@ double nvu_Glu(double t, double x, double y) {
     double Glu_max = 1846; // uM - one vesicle (Santucci)
     double t_up   = 50;
     double t_down = 800;
-    //double Glu = (Glu_min + (Glu_max - Glu_min) / 2 * (1 + tanh(t - t_up)) + (Glu_min - Glu_max) / 2 * (1 + tanh(t - t_down)))     * (( 0.5 + 0.5 * (tanh(10000*(x-0.0004)+1)))*(0.5 + 0.5*(tanh(10000*(y-0.0004)+1))));
-    //double Glu =  (0.5 + 0.5 *(tanh(10000*(x-0.0004)+1)))*(0.5 + 0.5*(tanh(10000*(y-0.0004)+1)));
-
-    //double Glu = 1846 * ((0.5 + 0.5 *(tanh(10000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(10000*(y-0.0004)+1))));   
-
+    double blocks_activated = 4;
     double Glu = ((0.5 + 0.5 *(tanh(100000*(x-0.0004)+1))) *(0.5 + 0.5 *(tanh(100000*(y-0.0004)+1))))        *          ((Glu_min + (Glu_max - Glu_min) / 2.0 * (1 + tanh(10*(t - t_up))) + (Glu_min - Glu_max) / 2.0 * (1 + tanh(10*(t - t_down)))));
     return Glu;
 }

@@ -137,7 +137,7 @@ double  p0(double t);
 void    init_parallel(workspace *W, int argc, char **argv);
 void    init_io(workspace *W);
 void    close_io(workspace *W);
-void    write_data(workspace *W, double t, double *y); //double *p, double *q);
+void    write_data(workspace *W, double t, double *y); 
 void    write_info(workspace *W);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
