@@ -187,6 +187,43 @@ void write_data(workspace *W, double t, double *y) {
     W->n_writes++;
 }
 
+void write_flow(workspace *W, double t, double *q) {
+    xbranch2 = 0;
+    W->mglobal
+    xbranch = 0;
+    pos = 0;
+    nl = W->nlocal;
+    ml = W->mlocal;
+    ng = W->nglobal;
+    mg = W->mglobal;
+    
+    for(int level = 0; level < subtree_size; level++) {
+        
+        displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml;
+        pos = pos + displ0;
+        chunk_size = W->mlocal;
+        
+        for(int i = 0; i < W->nlocal; i++) {
+            for (int j = 0; j < chunk_size; j++) {
+                Qtot[pos] = q[?+j]; //write data
+                pos = pos+1
+                displ1 = (mg-1)*ml
+                pos = pos + (displ1)
+                
+                displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml #skip the remaining elements
+                pos = pos + displ2
+                
+                ml = ml / (2 - xbranch);
+                nl = nl / (1 + xbranch);
+                xbranch = int(not xbranch) #toggle xbranch 0 or 1 # !xbranch
+                
+                return Qtot
+                
+                
+    xbranch2 = !xbranch2;
+
+}
+
 void write_info(workspace *W) {
     // Write the summary info to disk
     if (W->rank == 0) {
