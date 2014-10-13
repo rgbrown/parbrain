@@ -204,9 +204,9 @@ void write_flow(workspace *W, double *q, double *q0) {  // TODO: no t needed
     for (int level = 0; level < W->Np; level++) {  // subtrees
     displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml;
     pos = pos + displ0;
-    chunk_size = W->mlocal;
+    chunk_size = ml;
 
-        for (int i = 0; i < W->nlocal; i++) {
+        for (int i = 0; i < nl; i++) {
             
             for (int j = 0; j < chunk_size; j++) {
                 W->Qtot[pos] = q[pos_q + j]; //write data
@@ -381,6 +381,8 @@ void init_roottree(workspace *W) {
 //    W->Qtot = malloc ((1 << W->Np) - 1)*sizeof(*W->Qtot));
 //    W->Qtot = malloc (((1 << W->N) -1)*sizeof(*W->Qtot)); //for 1 timestamp
     W->Qtot = malloc (1024*sizeof(*W->Qtot)); //for 1 timestamp
+    for (int i=0;i<1024;i++) W->Qtot[i]=-1;
+
     W->xn0 = malloc (W->A0->n * sizeof (*W->xn0));
 }
 void init_problem(workspace *W) {

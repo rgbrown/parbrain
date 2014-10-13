@@ -74,22 +74,40 @@ int main(int argc, char **argv) {
 }
 
 void printQtot(workspace *W) {
-    int rowSize = 10;
-    int length = (1<< W->N)-1;
-    int numRows = length/rowSize;
-    for (int i=0; i< numRows;i++) {
-	printf("%3d: ", i);
-	for (int j=0; j< rowSize; j++) {
-		printf("%4.3f ", W->Qtot[i*rowSize+j]);
-	}
-	printf("\n");
+	MPI_Status status;
+        int length = (1<< W->N)-1; 
+	if (W->rank==0) {
+
+
+	    int rowSize = 10;
+	    int numRows = length/rowSize;
+
+    	    double *Qtot_tmp = malloc(length*sizeof(double));
+	    for (int i=1; i<W->n_procs;i++) {
+		MPI_Recv(Qtot_tmp, length, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &status);
+ 		for (int j=0;j<length;j++) {
+			if (Qtot_tmp[j]!=-1) W->Qtot[j]=Qtot_tmp[j];
+		}
+	    }
+
+	    printf("Rank =%d\n",W->rank);
+	    for (int i=0; i< numRows;i++) {
+		printf("%3d: ", i);
+		for (int j=0; j< rowSize; j++) {
+			printf("%6.4f ", W->Qtot[i*rowSize+j]);
+		}
+		printf("\n");
 	
-    }
-    printf("%3d: ", numRows);
-    for (int j=0; j<length-numRows*rowSize; j++) {
-	printf("%4.3f ", W->Qtot[numRows*rowSize+j]);
-    }
-    printf("\n");
+	    }
+	    printf("%3d: ", numRows);
+	    for (int j=0; j<length-numRows*rowSize; j++) {
+		printf("%6.4f ", W->Qtot[numRows*rowSize+j]);
+	    }
+	    printf("\n");
+	}
+	else {
+		MPI_Send(W->Qtot, length, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+	}
 }
 
 // Fixed step Backward Euler ODE solver
@@ -114,9 +132,11 @@ void back_euler(odews *ws) {
     write_data(W, t, ws->y); // Write initial data to file
     write_flow(W, W->q, W->q0); 
     MPI_Barrier(MPI_COMM_WORLD);
-    if (W->rank ==0) {
-	    printQtot(W);
-    }
+
+    printQtot(W);
+
+
+
     
 
     // write_vtk(W, t, ws->y, W->p, W->q);
