@@ -8,7 +8,7 @@ ifeq ($(MACHINE),ppc64)
 	MPCC = mpcc
 	INC = 
 else
-	CFARCHDEP = -Wall -std=c99
+	CFARCHDEP = -Wall -std=c99 -g
 	MPCC = mpicc
 	INC = -I/usr/include/suitesparse
 endif

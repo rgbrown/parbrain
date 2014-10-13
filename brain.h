@@ -43,6 +43,8 @@ typedef struct workspace {
     int     nlocal; // ..
     int     mglobal;// Processor grid, number of rows
     int     nglobal;// Processor grid, number of columns
+    int     ntimestamps; 
+    int     QtotPos;
 
     // Root subtree
     cs      *A0;    // Root adjacency matrix
@@ -82,7 +84,9 @@ typedef struct workspace {
     int     displacement_per_write; // bytes written per write (globally)
     double  *buf;    // Communication buffer
     char    *outfilename;
+    char    *qoutfilename;
     MPI_File outfile;
+    MPI_File Qoutfile;
     MPI_Datatype subarray;
     MPI_Datatype subarray_single;
 
