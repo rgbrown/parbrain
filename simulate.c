@@ -93,6 +93,7 @@ void back_euler(odews *ws) {
 
     int converged = 0;
     write_data(W, t, ws->y); // Write initial data to file
+    write_flow(W, t, W->q); // TODO: no t needed
     // write_vtk(W, t, ws->y, W->p, W->q);
     for (int i = 0; t < ws->tf; i++) {
         // Perform a Jacobian update if necessary. This is in sync across
@@ -145,7 +146,8 @@ void back_euler(odews *ws) {
 		//if (t <= 0.1) {
         if (fmod(t, ws->dtwrite) < ws->gamma) {
             write_data(W, t, ws->y); //ws->p, ws->q);
-		    //write_vtk(W, t, ws->y, W->p, W->q);
+	    //write_vtk(W, t, ws->y, W->p, W->q);
+            write_flow(W, t, W->q); 
             if (W->rank == 0) 
                 printf("time: %e \n",t);
         }

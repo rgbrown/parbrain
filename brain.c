@@ -187,41 +187,51 @@ void write_data(workspace *W, double t, double *y) {
     W->n_writes++;
 }
 
-void write_flow(workspace *W, double t, double *q) {
-    xbranch2 = 0;
-    W->mglobal
-    xbranch = 0;
-    pos = 0;
-    nl = W->nlocal;
-    ml = W->mlocal;
-    ng = W->nglobal;
-    mg = W->mglobal;
-    
-    for(int level = 0; level < subtree_size; level++) {
-        
-        displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml;
-        pos = pos + displ0;
-        chunk_size = W->mlocal;
-        
-        for(int i = 0; i < W->nlocal; i++) {
-            for (int j = 0; j < chunk_size; j++) {
-                Qtot[pos] = q[?+j]; //write data
-                pos = pos+1
-                displ1 = (mg-1)*ml
-                pos = pos + (displ1)
-                
-                displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml #skip the remaining elements
-                pos = pos + displ2
-                
-                ml = ml / (2 - xbranch);
-                nl = nl / (1 + xbranch);
-                xbranch = int(not xbranch) #toggle xbranch 0 or 1 # !xbranch
-                
-                return Qtot
-                
-                
-    xbranch2 = !xbranch2;
 
+void write_flow(workspace *W, double t, double *q) {  // TODO: no t needed
+// QUESTION: Do we get a value for root branch? --> size of q / displacement per write?
+
+    int nbranches = (1 << W->Np) - 1;  //TODO: add variable to workspace W! (-1?)
+    int sizetime = 1; // time steps, will be all later
+    double Qtot[nbranches*sizetime];
+    xbranch2 = 0;  // TODO: synch with xbranch in adjacency.c!
+    int pos_tot = 0;   // rank-specific position in Qtot
+    int pos_q = 0;     // position in q vector 
+    int nl = W->nlocal; // because the values will get updated here
+    int ml = W->mlocal;
+    int ng = W->nglobal;
+    int mg = W->mglobal;
+    
+    for (int level = 0; level < W->Np; level++) {  // subtrees
+    displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml;
+    pos_tot = pos_tot + displ0;
+    chunk_size = W->mlocal;
+
+        for (int i = 0; i < W->nlocal; i++) {
+            pos_q = pos_q + chunk_size;
+            for (int j = 0; j < chunk_size; j++) {
+                Qtot[pos_tot] = q[pos_q + j]; //write data
+                printf("%d", q[pos_q + j]);
+            }
+            pos_tot = pos_tot + 1; // why?
+            displ1 = (mg - 1) * ml;
+            pos_tot = pos_tot + displ1;
+        }
+
+        displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml; //skip the remaining elements
+        pos_tot = pos_tot + displ2;
+
+        ml = ml / (2 - xbranch);
+        nl = nl / (1 + xbranch);
+        xbranch2 = !xbranch2;
+    }
+    // write data from roottree
+    for (int k = 0; k < W->N0; k++) {
+        Qtot[pos_tot] = q[pos_q + k];
+        printf("%d", q[pos_q + k]);
+    }
+
+    return Qtot
 }
 
 void write_info(workspace *W) {
