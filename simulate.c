@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     // Problem parameters
     ws->gamma  = 1e-5; // time step  1e-5
     ws->t0     = 0.;   // initial time 0
-    ws->tf     = 0.1;  // final time  10
+    ws->tf     = 1e-5;  // final time  10
     ws->ftol   = 1e-3; // function evaluation tolerance for Newton convergence 1e-3
     ws->ytol   = 1e-3; // relative error tolerance for Newton convergence 1e-3
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation 5
@@ -73,6 +73,25 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+void printQtot(workspace *W) {
+    int rowSize = 10;
+    int length = (1<< W->N)-1;
+    int numRows = length/rowSize;
+    for (int i=0; i< numRows;i++) {
+	printf("%3d: ", i);
+	for (int j=0; j< rowSize; j++) {
+		printf("%4.3f ", W->Qtot[i*rowSize+j]);
+	}
+	printf("\n");
+	
+    }
+    printf("%3d: ", numRows);
+    for (int j=0; j<length-numRows*rowSize; j++) {
+	printf("%4.3f ", W->Qtot[numRows*rowSize+j]);
+    }
+    printf("\n");
+}
+
 // Fixed step Backward Euler ODE solver
 void back_euler(odews *ws) {
     // Declare and initialise additional workspace variables
@@ -93,7 +112,13 @@ void back_euler(odews *ws) {
 
     int converged = 0;
     write_data(W, t, ws->y); // Write initial data to file
-    write_flow(W, t, W->q); // TODO: no t needed
+    write_flow(W, W->q, W->q0); 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (W->rank ==0) {
+	    printQtot(W);
+    }
+    
+
     // write_vtk(W, t, ws->y, W->p, W->q);
     for (int i = 0; t < ws->tf; i++) {
         // Perform a Jacobian update if necessary. This is in sync across
@@ -147,7 +172,7 @@ void back_euler(odews *ws) {
         if (fmod(t, ws->dtwrite) < ws->gamma) {
             write_data(W, t, ws->y); //ws->p, ws->q);
 	    //write_vtk(W, t, ws->y, W->p, W->q);
-            write_flow(W, t, W->q); 
+            write_flow(W, W->q, W->q0); 
             if (W->rank == 0) 
                 printf("time: %e \n",t);
         }

@@ -188,50 +188,49 @@ void write_data(workspace *W, double t, double *y) {
 }
 
 
-void write_flow(workspace *W, double t, double *q) {  // TODO: no t needed
+void write_flow(workspace *W, double *q, double *q0) {  // TODO: no t needed
 // QUESTION: Do we get a value for root branch? --> size of q / displacement per write?
-
-    int nbranches = (1 << W->Np) - 1;  //TODO: add variable to workspace W! (-1?)
-    int sizetime = 1; // time steps, will be all later
-    double Qtot[nbranches*sizetime];
-    xbranch2 = 0;  // TODO: synch with xbranch in adjacency.c!
-    int pos_tot = 0;   // rank-specific position in Qtot
+    int displ0, displ1, displ2;
+    int chunk_size;
+   
+    int xbranch = 0;  // TODO: synch with xbranch in adjacency.c!
+    int pos = 0;   // rank-specific position in Qtot
     int pos_q = 0;     // position in q vector 
     int nl = W->nlocal; // because the values will get updated here
     int ml = W->mlocal;
     int ng = W->nglobal;
     int mg = W->mglobal;
-    
+
     for (int level = 0; level < W->Np; level++) {  // subtrees
     displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml;
-    pos_tot = pos_tot + displ0;
+    pos = pos + displ0;
     chunk_size = W->mlocal;
 
         for (int i = 0; i < W->nlocal; i++) {
-            pos_q = pos_q + chunk_size;
+            
             for (int j = 0; j < chunk_size; j++) {
-                Qtot[pos_tot] = q[pos_q + j]; //write data
-                printf("%d", q[pos_q + j]);
+                W->Qtot[pos] = q[pos_q + j]; //write data
+		pos = pos + 1; // why?
             }
-            pos_tot = pos_tot + 1; // why?
+	    pos_q = pos_q + chunk_size;
+            
             displ1 = (mg - 1) * ml;
-            pos_tot = pos_tot + displ1;
+            pos = pos + displ1;
         }
 
         displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml; //skip the remaining elements
-        pos_tot = pos_tot + displ2;
+        pos = pos + displ2;
 
         ml = ml / (2 - xbranch);
         nl = nl / (1 + xbranch);
-        xbranch2 = !xbranch2;
+        xbranch = !xbranch;
     }
     // write data from roottree
     for (int k = 0; k < W->N0; k++) {
-        Qtot[pos_tot] = q[pos_q + k];
-        printf("%d", q[pos_q + k]);
+        W->Qtot[pos] = q0[pos_q + k];
+	pos = pos+1;
     }
-
-    return Qtot
+    
 }
 
 void write_info(workspace *W) {
@@ -379,6 +378,9 @@ void init_roottree(workspace *W) {
     W->b0  = malloc (W->A0->n * sizeof (*W->b0));
     W->p0  = malloc (W->A0->m * sizeof (*W->b0));
     W->q0  = malloc (W->A0->n * sizeof (*W->b0));
+//    W->Qtot = malloc ((1 << W->Np) - 1)*sizeof(*W->Qtot));
+//    W->Qtot = malloc (((1 << W->N) -1)*sizeof(*W->Qtot)); //for 1 timestamp
+    W->Qtot = malloc (1024*sizeof(*W->Qtot)); //for 1 timestamp
     W->xn0 = malloc (W->A0->n * sizeof (*W->xn0));
 }
 void init_problem(workspace *W) {
