@@ -38,12 +38,12 @@ int main(int argc, char **argv) {
     // Problem parameters
     ws->gamma  = 1e-5; // time step  1e-5
     ws->t0     = 0.;   // initial time 0
-    ws->tf     = 1e-5;  // final time  10
+    ws->tf     = 5;  // final time  10
     ws->ftol   = 1e-3; // function evaluation tolerance for Newton convergence 1e-3
     ws->ytol   = 1e-3; // relative error tolerance for Newton convergence 1e-3
     ws->nconv  = 5;    // Newton iteration threshold for Jacobian reevaluation 5
     ws->maxits = 100;   // Maximum number of Newton iterations 100
-    ws->dtwrite = 5e-2; // Time step for writing to file (and screen)
+    ws->dtwrite = 1; // Time step for writing to file (and screen)
 
     // Initialise the solver with all the bits and pieces
     solver_init(ws, argc, argv);
@@ -75,42 +75,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void printQtot(workspace *W) {
-	MPI_Status status;
-        int length = (1<< W->N)-1; 
-	if (W->rank==0) {
-
-
-	    int rowSize = 10;
-	    int numRows = length/rowSize;
-
-    	    double *Qtot_tmp = malloc(length*sizeof(double));
-	    for (int i=1; i<W->n_procs;i++) {
-		MPI_Recv(Qtot_tmp, length, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &status);
- 		for (int j=0;j<length;j++) {
-			if (Qtot_tmp[j]!=-1) W->Qtot[j]=Qtot_tmp[j];
-		}
-	    }
-
-	    printf("Rank =%d\n",W->rank);
-	    for (int i=0; i< numRows;i++) {
-		printf("%3d: ", i);
-		for (int j=0; j< rowSize; j++) {
-			printf("%6.4f ", W->Qtot[i*rowSize+j]);
-		}
-		printf("\n");
-	
-	    }
-	    printf("%3d: ", numRows);
-	    for (int j=0; j<length-numRows*rowSize; j++) {
-		printf("%6.4f ", W->Qtot[numRows*rowSize+j]);
-	    }
-	    printf("\n");
-	}
-	else {
-		MPI_Send(W->Qtot, length, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-	}
-}
 
 // Fixed step Backward Euler ODE solver
 void back_euler(odews *ws) {
@@ -132,16 +96,9 @@ void back_euler(odews *ws) {
 
     int converged = 0;
     write_data(W, t, ws->y); // Write initial data to file
-    write_flow(W, W->q, W->q0); 
+    write_flow(W, t, W->q, W->q0); 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    printQtot(W);
-
-
-
-    
-
-    // write_vtk(W, t, ws->y, W->p, W->q);
     for (int i = 0; t < ws->tf; i++) {
         // Perform a Jacobian update if necessary. This is in sync across
         // all processors
@@ -189,17 +146,12 @@ void back_euler(odews *ws) {
         }
         t = tnext;
         dcopy(ny, w, ws->y); // update y values
-        //if (W->rank == 0) {   // TEST
-		//if (t <= 0.1) {
         if (fmod(t, ws->dtwrite) < ws->gamma) {
-            write_data(W, t, ws->y); //ws->p, ws->q);
-	    //write_vtk(W, t, ws->y, W->p, W->q);
-            write_flow(W, W->q, W->q0); 
+            write_data(W, t, ws->y); 
+            write_flow(W, t, W->q, W->q0); 
             if (W->rank == 0) 
                 printf("time: %e \n",t);
         }
-		//}
-        //}
     } // timestep loop
 }
 void solver_init(odews *ws, int argc, char **argv) {

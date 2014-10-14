@@ -23,8 +23,7 @@ workspace * init(int argc, char **argv) {
     W = malloc(sizeof *W);
     W->jacupdates = 0;
     W->fevals     = 0;
-
-    W->QtotPos = 0;
+    W->QglobalPos = 0;
 
     init_parallel(W, argc, argv);   // Initialise splitting into subtrees and MPI stuff
     init_subtree(W);                // Init adjacency matrix and workspace for subtree
@@ -139,10 +138,10 @@ void init_io(workspace *W) {
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
 
 
-    W->qoutfilename = malloc(FILENAMESIZE * sizeof(*W->qoutfilename));
+    W->Qoutfilename = malloc(FILENAMESIZE * sizeof(*W->Qoutfilename));
     // sprintf(W->outfilename, "out.dat");
-    sprintf(W->qoutfilename, "qout_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub );
-    MPI_File_open(MPI_COMM_WORLD, W->qoutfilename, MPI_MODE_WRONLY |
+    sprintf(W->Qoutfilename, "Qout_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub );
+    MPI_File_open(MPI_COMM_WORLD, W->Qoutfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->Qoutfile);
 
 
@@ -182,7 +181,7 @@ void close_io(workspace *W) {
     MPI_File_close(&W->outfile);
     MPI_File_close(&W->Qoutfile);
     free(W->outfilename);
-    free(W->qoutfilename);
+    free(W->Qoutfilename);
 }
 void write_data(workspace *W, double t, double *y) {
     // Set view for writing of timestamps
@@ -200,39 +199,39 @@ void write_data(workspace *W, double t, double *y) {
 }
 
 
-void write_flow(workspace *W, double *q, double *q0) {  // TODO: no t needed
-// QUESTION: Do we get a value for root branch? --> size of q / displacement per write?
+void write_flow(workspace *W, double t, double *q, double *q0) {  
     int displ0, displ1, displ2;
     int chunk_size;
    
-    int xbranch = 0;  // TODO: synch with xbranch in adjacency.c!
-    int pos = W->QtotPos;   // rank-specific position in Qtot
+    int xbranch = 0;  
+    int pos = W->QglobalPos;   // rank-specific position in Qtot
     int pos_q = 0;     // position in q vector 
+
     int nl = W->nlocal; // because the values will get updated here
     int ml = W->mlocal;
     int ng = W->nglobal;
     int mg = W->mglobal;
 
+    MPI_File_set_view(W->Qoutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    if (W->rank == 0) {
+        MPI_File_write(W->Qoutfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    }
+
+    pos += 1; //increase due to timestamp written above
+    MPI_Barrier(MPI_COMM_WORLD); //Just in case, leave the barrier here. May not be necessary.
 
     for (int level = 0; level < W->Np; level++) {  // subtrees
-    displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml;
-    pos = pos + displ0;
-    chunk_size = ml;
+       displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml; //skip all elements until we reach the portion of data we are interested in
+       pos = pos + displ0;
+       chunk_size = ml;
 
         for (int i = 0; i < nl; i++) {
-            
-           /* 
-	   for (int j = 0; j < chunk_size; j++) {
-                W->Qtot[pos] = q[pos_q + j]; //write data
-		pos = pos + 1; // why?
-            }
-	   */
 	    MPI_File_set_view(W->Qoutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
 	    MPI_File_write_all(W->Qoutfile, &q[pos_q], chunk_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
-
+	    pos = pos+chunk_size;
 	    pos_q = pos_q + chunk_size;
             
-            displ1 = (mg - 1) * ml;
+            displ1 = (mg - 1) * ml; //to jump to the next chunk of data in this level
             pos = pos + displ1;
         }
 
@@ -243,29 +242,18 @@ void write_flow(workspace *W, double *q, double *q0) {  // TODO: no t needed
         nl = nl / (1 + xbranch);
         xbranch = !xbranch;
     }
-    // write data from roottree
 
-//    MPI_Barrier(MPI_COMM_WORLD);
+    // write data from roottree
+//    MPI_Barrier(MPI_COMM_WORLD); //Just in case, leave the barrier here. May not be necessary.
     MPI_File_set_view(W->Qoutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
     int roottreeSize = (1<<W->N0) - 1;
     if (W->rank == 0) {
-
-/*
-	    for (int k = 0; k < rootreeSize; k++) {
-        	W->Qtot[pos] = q0[k];
-		pos = pos+1;
-	    }
-*/
-
         MPI_File_write(W->Qoutfile, &q0[0], roottreeSize, MPI_DOUBLE, MPI_STATUS_IGNORE);
+
     }
+    pos = pos+ roottreeSize;
 
-
-	else {
-		pos = pos + roottreeSize;
-	}	
-
-    W->QtotPos = pos;
+    W->QglobalPos = pos;
     
 }
 
@@ -414,12 +402,6 @@ void init_roottree(workspace *W) {
     W->b0  = malloc (W->A0->n * sizeof (*W->b0));
     W->p0  = malloc (W->A0->m * sizeof (*W->b0));
     W->q0  = malloc (W->A0->n * sizeof (*W->b0));
-
-    int Qtot_Size = ((1 << W->N) -1)*W->ntimestamps*2;
-//    W->Qtot = malloc (Qtot_Size*sizeof(*W->Qtot)); 
-
-    W->Qtot = malloc (1024*sizeof(*W->Qtot)); //for 1 timestamp
-    for (int i=0;i<1024;i++) W->Qtot[i]=-1;
 
     W->xn0 = malloc (W->A0->n * sizeof (*W->xn0));
 }
