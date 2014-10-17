@@ -45,6 +45,7 @@ typedef struct workspace {
     int     nglobal;// Processor grid, number of columns
     int     ntimestamps; 
     int     QglobalPos;
+    int     PglobalPos;
 
     // Root subtree
     cs      *A0;    // Root adjacency matrix
@@ -84,8 +85,10 @@ typedef struct workspace {
     double  *buf;    // Communication buffer
     char    *outfilename;
     char    *Qoutfilename;
+    char    *Poutfilename;
     MPI_File outfile;
     MPI_File Qoutfile;
+    MPI_File Poutfile;
     MPI_Datatype subarray;
     MPI_Datatype subarray_single;
 
@@ -142,7 +145,8 @@ void    init_parallel(workspace *W, int argc, char **argv);
 void    init_io(workspace *W);
 void    close_io(workspace *W);
 void    write_data(workspace *W, double t, double *y); 
-void    write_flow(workspace *W, double t, double *q, double *q0); 
+void    write_flow(workspace *W, double t, double *q, double *q0);
+void    write_pressure(workspace *W, double t, double *p, double *p0);
 void    write_info(workspace *W);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);

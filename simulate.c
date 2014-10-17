@@ -96,7 +96,8 @@ void back_euler(odews *ws) {
 
     int converged = 0;
     write_data(W, t, ws->y); // Write initial data to file
-    write_flow(W, t, W->q, W->q0); 
+    write_flow(W, t, W->q, W->q0);
+    write_pressure(W, t, W->p, W->p0);
     MPI_Barrier(MPI_COMM_WORLD);
 
     for (int i = 0; t < ws->tf; i++) {
@@ -148,8 +149,9 @@ void back_euler(odews *ws) {
         dcopy(ny, w, ws->y); // update y values
         if (fmod(t, ws->dtwrite) < ws->gamma) {
             write_data(W, t, ws->y); 
-            write_flow(W, t, W->q, W->q0); 
-            if (W->rank == 0) 
+            write_flow(W, t, W->q, W->q0);
+            write_pressure(W, t, W->p, W->p0);
+            if (W->rank == 0)
                 printf("time: %e \n",t);
         }
     } // timestep loop

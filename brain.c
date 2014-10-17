@@ -133,17 +133,20 @@ void init_io(workspace *W) {
     // Open up file
     W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
     // sprintf(W->outfilename, "out.dat");
-    sprintf(W->outfilename, "binary_out_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub );
+    sprintf(W->outfilename, "binary_out_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
     MPI_File_open(MPI_COMM_WORLD, W->outfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
 
 
     W->Qoutfilename = malloc(FILENAMESIZE * sizeof(*W->Qoutfilename));
-    // sprintf(W->outfilename, "out.dat");
-    sprintf(W->Qoutfilename, "Qout_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub );
+    sprintf(W->Qoutfilename, "Qout_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
     MPI_File_open(MPI_COMM_WORLD, W->Qoutfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->Qoutfile);
 
+    W->Poutfilename = malloc(FILENAMESIZE * sizeof(*W->Poutfilename));
+    sprintf(W->Poutfilename, "Pout_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
+    MPI_File_open(MPI_COMM_WORLD, W->Poutfilename, MPI_MODE_WRONLY |
+                  MPI_MODE_CREATE, MPI_INFO_NULL, &W->Poutfile);
 
     // Create subarray data type. This assumes column major orderin
     // (MPI_ORDER_FORTRAN). The factor of W->nu should be moved to
@@ -180,8 +183,10 @@ void close_io(workspace *W) {
     MPI_Type_free(&W->subarray);
     MPI_File_close(&W->outfile);
     MPI_File_close(&W->Qoutfile);
+    MPI_File_close(&W->Poutfile);
     free(W->outfilename);
     free(W->Qoutfilename);
+    free(W->Poutfilename);
 }
 void write_data(workspace *W, double t, double *y) {
     // Set view for writing of timestamps
@@ -257,13 +262,71 @@ void write_flow(workspace *W, double t, double *q, double *q0) {
     
 }
 
+void write_pressure(workspace *W, double t, double *p, double *p0) {
+    int displ0, displ1, displ2;
+    int chunk_size;
+    
+    int xbranch = 0;
+    int pos = W->PglobalPos;   // rank-specific position in Ptot
+    int pos_p = 0;     // position in p vector
+    
+    int nl = W->nlocal; // because the values will get updated here
+    int ml = W->mlocal/2; // !
+    int ng = W->nglobal;
+    int mg = W->mglobal;
+    
+    MPI_File_set_view(W->Poutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    if (W->rank == 0) {
+        MPI_File_write(W->Poutfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    }
+    
+    pos += 1; //increase due to timestamp written above
+    MPI_Barrier(MPI_COMM_WORLD); //Just in case, leave the barrier here. May not be necessary.
+    
+    for (int level = 0; level < W->Np; level++) {  // subtrees
+        displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml; //skip all elements until we reach the portion of data we are interested in
+        pos = pos + displ0;
+        chunk_size = ml;
+        
+        for (int i = 0; i < nl; i++) {
+            MPI_File_set_view(W->Poutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+            MPI_File_write_all(W->Poutfile, &p[pos_p], chunk_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+            pos = pos+chunk_size;
+            pos_p = pos_p + chunk_size;
+            
+            displ1 = (mg - 1) * ml; //to jump to the next chunk of data in this level
+            pos = pos + displ1;
+        }
+        
+        displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml; //skip the remaining elements
+        pos = pos + displ2;
+        
+        ml = ml / (2 - xbranch);
+        nl = nl / (1 + xbranch);
+        xbranch = !xbranch;
+    }
+    
+    // write data from roottree
+    MPI_File_set_view(W->Poutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    int roottreeSize = (1<<W->N0) - 1;
+    if (W->rank == 0) {
+        MPI_File_write(W->Poutfile, &p0[0], roottreeSize, MPI_DOUBLE, MPI_STATUS_IGNORE);
+        
+    }
+    pos = pos+ roottreeSize;
+    
+    W->PglobalPos = pos;
+    
+}
+
+
 void write_info(workspace *W) {
     // Write the summary info to disk
     if (W->rank == 0) {
         FILE *fp;
         // Write the data file
-        char infofilename[sizeof "info_np00_nbif00_lev00.dat"];
-        sprintf(infofilename, "info_np%02d_nbif%02d_lev%02d.dat",W->n_procs, W->N, W->Nsub);
+        char infofilename[sizeof "info_np00_nlev00_sbtr00.dat"];
+        sprintf(infofilename, "info_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub);
         fp = fopen(infofilename, "w");
         fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local         m_global        n_global\n");
         fprintf(fp, "%-16d", W->n_procs);
