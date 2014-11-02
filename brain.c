@@ -21,6 +21,7 @@ const double MU    = 3.5e-3;  // Pa s (Viscosity)
 workspace * init(int argc, char **argv) {
     workspace *W;
     W = malloc(sizeof *W);
+
     W->jacupdates = 0;
     W->fevals     = 0;
     W->QglobalPos = 0;
@@ -100,23 +101,29 @@ void init_parallel(workspace *W, int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &W->n_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &W->rank);
     assert(is_power_of_two(W->n_procs));
-
-    // Parse input parameters and set tree sizes. There are four N values
-    // that matter: 
-    //     N is the number of levels in the tree (total)
-    //     N0: number of levels in the root subtree
-    //     Np: number of levels in the subtrees corresponding to each
-    //     worker (N0 + Np = N)
-    //     Nsub: number of levels in the small scale subtrees for Jacobian
-    //     computation
+    /*
+    Parse input parameters and set tree sizes. There are four N values
+    that matter: 
+        N is the number of levels in the tree (total)
+        N0: number of levels in the root subtree
+        Np: number of levels in the subtrees corresponding to each
+        worker (N0 + Np = N)
+        Nsub: number of levels in the small scale subtrees for Jacobian
+        computation
+    */
     W->N    = NDEFAULT; 
     W->Nsub = NSUBDEFAULT;
     if (argc > 1)
-        W->N = atoi(argv[1]);
+        W->N = atoi(argv[1]); // N has been specified at command line
     if (argc > 2)
-        W->Nsub = atoi(argv[2]);
-    W->N0 = (int) round(log2((double) W->n_procs)); // number of levels in root
-    W->Np = W->N - W->N0; // number of levels in the tree looked after by each worker 
+        W->Nsub = atoi(argv[2]); // Nsub has been specified at command line
+    W->N0 = (int) round(log2((double) W->n_procs)); 
+    W->Np = W->N - W->N0; 
+
+    /* Check that the user input etc. makes sense. This catches the two bad
+     * cases of too many workers, or Nsub being too large */
+    assert(W->Np > W->Nsub);
+
 
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
