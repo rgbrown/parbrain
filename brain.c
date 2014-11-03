@@ -21,8 +21,10 @@ const double MU    = 3.5e-3;  // Pa s (Viscosity)
 workspace * init(int argc, char **argv) {
     workspace *W;
     W = malloc(sizeof *W);
+
     W->jacupdates = 0;
     W->fevals     = 0;
+    W->QglobalPos = 0;
 
     init_parallel(W, argc, argv);   // Initialise splitting into subtrees and MPI stuff
     init_subtree(W);                // Init adjacency matrix and workspace for subtree
@@ -31,10 +33,12 @@ workspace * init(int argc, char **argv) {
     compute_symbchol(W);            // Precompute symbolic factorisations 
     W->nvu = nvu_init();            // Initialise ODE parameter workspace
     W->neq = W->nvu->neq;
-    W->nu  = W->neq * W->nblocks;
+    W->nu  = W->neq * W->nblocks;   // no of state variables per rank
     set_conductance(W, 0, 1);       // set scaled conductances
     set_length(W);                  // Initialise the vessel lengths
     init_jacobians(W);              // Initialise Jacobian data structures
+    init_io(W);                     // Initialise output files
+    write_info(W);                  // Write summary information to disk
 
     return W;
 } 
@@ -88,7 +92,6 @@ void jacupdate(workspace *W, double t, double *u) {
     W->isjac = 1;
     cs_spfree(Y);
 
-
     free(f);
 }
 
@@ -98,20 +101,268 @@ void init_parallel(workspace *W, int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &W->n_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &W->rank);
     assert(is_power_of_two(W->n_procs));
-
-    // Parse input parameters and set tree sizes
+    /*
+    Parse input parameters and set tree sizes. There are four N values
+    that matter: 
+        N is the number of levels in the tree (total)
+        N0: number of levels in the root subtree
+        Np: number of levels in the subtrees corresponding to each
+        worker (N0 + Np = N)
+        Nsub: number of levels in the small scale subtrees for Jacobian
+        computation
+    */
     W->N    = NDEFAULT; 
     W->Nsub = NSUBDEFAULT;
     if (argc > 1)
-        W->N = atoi(argv[1]);
+        W->N = atoi(argv[1]); // N has been specified at command line
     if (argc > 2)
-        W->Nsub = atoi(argv[2]);
-    W->N0 = (int) round(log2((double) W->n_procs));
-    W->Np = W->N - W->N0;
+        W->Nsub = atoi(argv[2]); // Nsub has been specified at command line
+    W->N0 = (int) round(log2((double) W->n_procs)); 
+    W->Np = W->N - W->N0; 
+
+    /* Check that the user input etc. makes sense. This catches the two bad
+     * cases of too many workers, or Nsub being too large */
+    assert(W->Np > W->Nsub);
+
 
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
     W->flag = malloc(W->n_procs * sizeof (*W->flag));
+    W->n_writes = 0;
+}
+void init_io(workspace *W) {
+    int sizes[2];
+    int subsizes[2];
+    int starts[2];
+    // Initialise files for MPI I/O. Requires init_parallel to have been
+    // called first
+ 
+    // Open up file
+    W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
+    // sprintf(W->outfilename, "out.dat");
+    sprintf(W->outfilename, "binary_out_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
+    MPI_File_open(MPI_COMM_WORLD, W->outfilename, MPI_MODE_WRONLY |
+            MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
+
+
+    W->Qoutfilename = malloc(FILENAMESIZE * sizeof(*W->Qoutfilename));
+    sprintf(W->Qoutfilename, "Qout_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
+    MPI_File_open(MPI_COMM_WORLD, W->Qoutfilename, MPI_MODE_WRONLY |
+            MPI_MODE_CREATE, MPI_INFO_NULL, &W->Qoutfile);
+
+    W->Poutfilename = malloc(FILENAMESIZE * sizeof(*W->Poutfilename));
+    sprintf(W->Poutfilename, "Pout_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
+    MPI_File_open(MPI_COMM_WORLD, W->Poutfilename, MPI_MODE_WRONLY |
+                  MPI_MODE_CREATE, MPI_INFO_NULL, &W->Poutfile);
+
+    // Create subarray data type. This assumes column major orderin
+    // (MPI_ORDER_FORTRAN). The factor of W->nu should be moved to
+    // subsizes[1] if row major (MPI_ORDER_C) is desired
+    subsizes[0] = W->mlocal * W->neq;
+    subsizes[1] = W->nlocal;
+
+    sizes[0] = subsizes[0] * W->mglobal;
+    sizes[1] = subsizes[1] * W->nglobal;
+
+    starts[0] = subsizes[0] * (W->rank % W->mglobal);
+    starts[1] = subsizes[1] * (W->rank / W->mglobal);
+
+    // Create subarray for writing state variables
+    MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_FORTRAN,
+            MPI_DOUBLE, &W->subarray);
+    MPI_Type_commit(&W->subarray);
+
+    // Create subarray for writing single double per block
+    subsizes[0] = W->mlocal;
+    sizes[0] = subsizes[0] * W->mglobal;
+    starts[0] = subsizes[0] * (W->rank % W->mglobal);
+    MPI_Type_create_subarray(2, sizes, subsizes, starts, MPI_ORDER_FORTRAN,
+            MPI_DOUBLE, &W->subarray_single);
+    MPI_Type_commit(&W->subarray_single);
+
+    W->n_writes = 0;
+    W->displacement = 0; // bytes
+    W->displacement_per_write = (sizeof(double)) * (1 + W->nu * W->n_procs); // bytes 
+
+}
+void close_io(workspace *W) {
+    // Close data files
+    MPI_Type_free(&W->subarray);
+    MPI_File_close(&W->outfile);
+    MPI_File_close(&W->Qoutfile);
+    MPI_File_close(&W->Poutfile);
+    free(W->outfilename);
+    free(W->Qoutfilename);
+    free(W->Poutfilename);
+}
+void write_data(workspace *W, double t, double *y) {
+    // Set view for writing of timestamps
+    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE, MPI_DOUBLE,
+            "native", MPI_INFO_NULL);
+    if (W->rank == 0) {
+        MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_File_set_view(W->outfile, W->displacement + sizeof(t), MPI_DOUBLE,
+            W->subarray, "native", MPI_INFO_NULL);
+    MPI_File_write_all(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    W->displacement += W->displacement_per_write;
+    W->n_writes++;
+}
+
+
+void write_flow(workspace *W, double t, double *q, double *q0) {  
+    int displ0, displ1, displ2;
+    int chunk_size;
+   
+    int xbranch = 0;  
+    int pos = W->QglobalPos;   // rank-specific position in Qtot
+    int pos_q = 0;     // position in q vector 
+
+    int nl = W->nlocal; // because the values will get updated here
+    int ml = W->mlocal;
+    int ng = W->nglobal;
+    int mg = W->mglobal;
+
+    MPI_File_set_view(W->Qoutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    if (W->rank == 0) {
+        MPI_File_write(W->Qoutfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    }
+
+    pos += 1; //increase due to timestamp written above
+    MPI_Barrier(MPI_COMM_WORLD); //Just in case, leave the barrier here. May not be necessary.
+
+    for (int level = 0; level < W->Np; level++) {  // subtrees
+       displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml; //skip all elements until we reach the portion of data we are interested in
+       pos = pos + displ0;
+       chunk_size = ml;
+
+        for (int i = 0; i < nl; i++) {
+	    MPI_File_set_view(W->Qoutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+	    MPI_File_write_all(W->Qoutfile, &q[pos_q], chunk_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+	    pos = pos+chunk_size;
+	    pos_q = pos_q + chunk_size;
+            
+            displ1 = (mg - 1) * ml; //to jump to the next chunk of data in this level
+            pos = pos + displ1;
+        }
+
+        displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml; //skip the remaining elements
+        pos = pos + displ2;
+
+        ml = ml / (2 - xbranch);
+        nl = nl / (1 + xbranch);
+        xbranch = !xbranch;
+    }
+
+    // write data from roottree
+//    MPI_Barrier(MPI_COMM_WORLD); //Just in case, leave the barrier here. May not be necessary.
+    MPI_File_set_view(W->Qoutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    int roottreeSize = (1<<W->N0) - 1;
+    if (W->rank == 0) {
+        MPI_File_write(W->Qoutfile, &q0[0], roottreeSize, MPI_DOUBLE, MPI_STATUS_IGNORE);
+
+    }
+    pos = pos+ roottreeSize;
+
+    W->QglobalPos = pos;
+    
+}
+
+void write_pressure(workspace *W, double t, double *p, double *p0) {
+    int displ0, displ1, displ2;
+    int chunk_size;
+    
+    int xbranch = 0;
+    int pos = W->PglobalPos;   // rank-specific position in Ptot
+    int pos_p = 0;     // position in p vector
+    
+    int nl = W->nlocal; // because the values will get updated here
+    int ml = W->mlocal/2; // !
+    int ng = W->nglobal;
+    int mg = W->mglobal;
+    
+    MPI_File_set_view(W->Poutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    if (W->rank == 0) {
+        MPI_File_write(W->Poutfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    }
+    
+    pos += 1; //increase due to timestamp written above
+    MPI_Barrier(MPI_COMM_WORLD); //Just in case, leave the barrier here. May not be necessary.
+    
+    for (int level = 0; level < W->Np; level++) {  // subtrees
+        displ0 = (W->rank/mg) * mg * nl * ml + (W->rank % mg) * ml; //skip all elements until we reach the portion of data we are interested in
+        pos = pos + displ0;
+        chunk_size = ml;
+        
+        for (int i = 0; i < nl; i++) {
+            MPI_File_set_view(W->Poutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+            MPI_File_write_all(W->Poutfile, &p[pos_p], chunk_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
+            pos = pos+chunk_size;
+            pos_p = pos_p + chunk_size;
+            
+            displ1 = (mg - 1) * ml; //to jump to the next chunk of data in this level
+            pos = pos + displ1;
+        }
+        
+        displ2 = (ng - 1 - W->rank / mg) * mg * nl * ml - (W->rank % mg) * ml; //skip the remaining elements
+        pos = pos + displ2;
+        
+        ml = ml / (2 - xbranch);
+        nl = nl / (1 + xbranch);
+        xbranch = !xbranch;
+    }
+    
+    // write data from roottree
+    MPI_File_set_view(W->Poutfile, pos*sizeof(double), MPI_DOUBLE, MPI_DOUBLE,"native", MPI_INFO_NULL);
+    int roottreeSize = (1<<W->N0) - 1;
+    if (W->rank == 0) {
+        MPI_File_write(W->Poutfile, &p0[0], roottreeSize, MPI_DOUBLE, MPI_STATUS_IGNORE);
+        
+    }
+    pos = pos+ roottreeSize;
+    
+    W->PglobalPos = pos;
+    
+}
+
+
+void write_info(workspace *W) {
+    // Write the summary info to disk
+    if (W->rank == 0) {
+        FILE *fp;
+        // Write the data file
+        char infofilename[sizeof "info_np00_nlev00_sbtr00.dat"];
+        sprintf(infofilename, "info_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub);
+        fp = fopen(infofilename, "w");
+        fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local         m_global        n_global\n");
+        fprintf(fp, "%-16d", W->n_procs);
+        fprintf(fp, "%-16d", W->nblocks);
+        fprintf(fp, "%-16d", W->neq);
+        fprintf(fp, "%-16d", W->mlocal);
+        fprintf(fp, "%-16d", W->nlocal);
+        fprintf(fp, "%-16d", W->mglobal);
+        fprintf(fp, "%-16d", W->nglobal);
+        fprintf(fp, "\n");
+        fclose(fp);
+    }
+
+
+    // Write the x and y coordinates to the file
+    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE,
+            W->subarray_single, "native", MPI_INFO_NULL);
+    MPI_File_write_all(W->outfile, W->x, W->nblocks, MPI_DOUBLE,
+            MPI_STATUS_IGNORE);
+    W->displacement += sizeof(*W->x) * W->nblocks * W->n_procs;
+    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE,
+            W->subarray_single, "native", MPI_INFO_NULL);
+    MPI_File_write_all(W->outfile, W->y, W->nblocks, MPI_DOUBLE,
+            MPI_STATUS_IGNORE);
+    W->displacement += sizeof(*W->y) * W->nblocks * W->n_procs;
+
+
+    //MPI_File_write(W->outfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    //MPI_File_write(W->outfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
 void set_spatial_coordinates(workspace *W) {
@@ -122,8 +373,10 @@ void set_spatial_coordinates(workspace *W) {
     int ig, jg;
     double delta;
 
+    // Work out arrangement of workers into mg x ng grid (note mg*ng = P)
     mg = 1 << (l2P / 2);
     ng = 1 << (l2P / 2 + l2P % 2);
+    // Work out how many rows / columns of blocks we have for each worker
     ml = 1 << ((W->Np - 1) / 2 + (W->Np - 1) % 2);
     nl = 1 << (W->Np - 1) / 2;
     ig = W->rank % mg;
@@ -141,12 +394,15 @@ void set_spatial_coordinates(workspace *W) {
                             0.5 * delta * (double) (2*j - (nl - 1));
             W->y[i + ml * j] = yoffset + \
                             0.5 * delta * (double) (2*i - (ml - 1));
-
+	//printf("%d x / y coord: %f / %f \n", i + ml * j, W->x[i + ml * j], W->y[i + ml * j]);
         }
     }
-
-
+    W->mlocal = ml;
+    W->nlocal = nl;
+    W->mglobal = mg;
+    W->nglobal = ng;
 }
+ 
 int is_power_of_two (unsigned int x) {
       return ((x != 0) && !(x & (x - 1)));
 }
@@ -216,6 +472,7 @@ void init_roottree(workspace *W) {
     W->b0  = malloc (W->A0->n * sizeof (*W->b0));
     W->p0  = malloc (W->A0->m * sizeof (*W->b0));
     W->q0  = malloc (W->A0->n * sizeof (*W->b0));
+
     W->xn0 = malloc (W->A0->n * sizeof (*W->xn0));
 }
 void init_problem(workspace *W) {
@@ -575,7 +832,6 @@ void eval_dfdp(workspace *W, double t, double *y, double *f, double eps) {
             p1[k] = W->p[k];
 
         // Increment entry of h for every entry column in the group 
-        printf("ng: %d ig: %d\n", W->dfdp->ng, igrp);
         for (int k = W->dfdp->r[igrp]; k < W->dfdp->r[igrp+1]; k++) {
             j = W->dfdp->g[k];
             h[j] = eps; // * fabs(W->p[j]);
@@ -603,6 +859,13 @@ void rhs(workspace *W, double t, double *u, double *p, double *du) {
         istart = W->neq * i;
         // Evaluate the individual right hand side
         nvu_rhs(t, W->x[i], W->y[i], p[i/2], u + istart, du + istart, W->nvu);
+    }
+}
+void set_initial_conditions(workspace *W, double *u){
+    int istart;
+    for (int i = 0; i < W->nblocks; i++) {
+        istart = W->neq * i;
+        nvu_ics(u + istart, W->x[i], W->y[i], W->nvu);
     }
 }
 

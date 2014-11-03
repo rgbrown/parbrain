@@ -27,8 +27,14 @@ core
 
 *.err
 *.out
+*.dSYM*
 # Editor temporary files
 *.swp
 *.ll
+*~
 foo.c
 foo.dat
+
+# Simulation data files
+*.dat
+.DS_Store

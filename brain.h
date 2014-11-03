@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define FILENAMESIZE 128
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846264338327
 #endif
@@ -37,6 +39,13 @@ typedef struct workspace {
     int     nblocks;// Number of nvu blocks
     int     nu;     // Number of equations total
     int     neq;    // Number of equations per block
+    int     mlocal; // Size of subtree
+    int     nlocal; // ..
+    int     mglobal;// Processor grid, number of rows
+    int     nglobal;// Processor grid, number of columns
+    int     ntimestamps; 
+    int     QglobalPos;
+    int     PglobalPos;
 
     // Root subtree
     cs      *A0;    // Root adjacency matrix
@@ -70,7 +79,21 @@ typedef struct workspace {
     // MPI Information 
     int     rank;
     int     n_procs;
+    int     n_writes;
+    int     displacement; // global displacement in output file, in bytes
+    int     displacement_per_write; // bytes written per write (globally)
     double  *buf;    // Communication buffer
+    char    *outfilename;
+    char    *Qoutfilename;
+    char    *Poutfilename;
+    MPI_File outfile;
+    MPI_File Qoutfile;
+    MPI_File Poutfile;
+    MPI_Datatype subarray;
+    MPI_Datatype subarray_single;
+
+    // VTK file
+    char    *vtkfilename;
 
     // Geometrical information
     int     N;      // Total number of levels */
@@ -119,6 +142,12 @@ double  p0(double t);
 
 /* Internal methods: shouldn't be used in code outside brain.c */
 void    init_parallel(workspace *W, int argc, char **argv);
+void    init_io(workspace *W);
+void    close_io(workspace *W);
+void    write_data(workspace *W, double t, double *y); 
+void    write_flow(workspace *W, double t, double *q, double *q0);
+void    write_pressure(workspace *W, double t, double *p, double *p0);
+void    write_info(workspace *W);
 int     is_power_of_two(unsigned int x);
 void    init_subtree(workspace *W);
 //cs     *adjacency(int N);
@@ -144,7 +173,34 @@ void    eval_dfdx(workspace *W, double t, double *y, double *f, double eps);
 void    eval_dfdp(workspace *W, double t, double *y, double *f, double eps);
 void    eval_dgdx(workspace *W, double t, double *y);
 void    eval_dpdg(workspace *W, double t, double *y);
+void    set_initial_conditions(workspace *W, double *y);
 void    rhs(workspace *W, double t, double *y, double *p, double *dy);
 cs     *mldivide_chol(cs *A, css *S, cs *B);
 
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

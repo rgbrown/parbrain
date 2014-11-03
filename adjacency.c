@@ -64,7 +64,8 @@ cs * adjacency(int N) {
                 }
             }
             ncols /= 2;
-        } else {
+        } 
+        else {
             for (int j = 0; j < ncols; j++) {
                 for (int i = 0; i < nrows; i+=2) {
                     k1 = a + i + j*nrows;
@@ -77,10 +78,11 @@ cs * adjacency(int N) {
             nrows /= 2;
         }
         xbranch = !xbranch;
-    }
+    } // L loop: from bottom level up to the top of the tree (internal nodes)
     T->nz = k;
     A = cs_compress(T);
     cs_spfree(T);
+    //cs_print(A,1);
     return A;
 }
 
