@@ -156,7 +156,7 @@ void init_io(workspace *W) {
                   MPI_MODE_CREATE, MPI_INFO_NULL, &W->Poutfile);
 
     // Create subarray data type. This assumes column major orderin
-    // (MPI_ORDER_FORTRAN). The factor of W->nu should be moved to
+    // (MPI_ORDER_FORTRAN). The factor of W->neq should be moved to
     // subsizes[1] if row major (MPI_ORDER_C) is desired
     subsizes[0] = W->mlocal * W->neq;
     subsizes[1] = W->nlocal;

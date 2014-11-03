@@ -84,10 +84,7 @@ if regdisabled
 else
     print -deps regenabled.eps
 end
-%
-%
 
-end
 
 %% Now, we'll look at changes with neurological activity levels
 % Create a metabolic function that starts in one corner, and we're just
