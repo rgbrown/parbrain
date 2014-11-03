@@ -29,7 +29,6 @@ if __name__ == '__main__':
 	binaryName = '%s' %(binaryNamePrefix)
 	asciiName = '%s.txt' %(binaryName)
 	bf = open(binaryName,'rb')
-#	af.write("Lon,Lat,Amplitude\n")
 	while(bf.tell() < os.fstat(bf.fileno()).st_size):
 		value =bf.read(8) #read 8 bytes of data (skip spaces)
 		lx=unpack('d',value) #
@@ -37,7 +36,7 @@ if __name__ == '__main__':
 
 	bf.close()
 
-	lenEachTimeStampList = 2**numLevels
+	lenEachTimeStampList = 2**numLevels/2
 	i=0
 	while i*lenEachTimeStampList < len(values):
 		timeStamp = values[i*lenEachTimeStampList]

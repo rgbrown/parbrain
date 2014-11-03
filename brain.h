@@ -6,6 +6,12 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+
 #define FILENAMESIZE 128
 
 #ifndef M_PI
@@ -83,12 +89,14 @@ typedef struct workspace {
     int     displacement; // global displacement in output file, in bytes
     int     displacement_per_write; // bytes written per write (globally)
     double  *buf;    // Communication buffer
-    char    *outfilename;
+    char    *Toutfilename;
     char    *Qoutfilename;
     char    *Poutfilename;
     MPI_File outfile;
     MPI_File Qoutfile;
     MPI_File Poutfile;
+    char    *dirName;
+
     MPI_Datatype subarray;
     MPI_Datatype subarray_single;
 

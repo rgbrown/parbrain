@@ -1,5 +1,6 @@
 #include "brain.h"
 
+
 const int NDEFAULT      = 9;
 const int NSUBDEFAULT   = 3;
 const int NSYMBOLS      = 4;
@@ -24,6 +25,7 @@ workspace * init(int argc, char **argv) {
     W->jacupdates = 0;
     W->fevals     = 0;
     W->QglobalPos = 0;
+    W->PglobalPos = 0;
 
     init_parallel(W, argc, argv);   // Initialise splitting into subtrees and MPI stuff
     init_subtree(W);                // Init adjacency matrix and workspace for subtree
@@ -127,24 +129,43 @@ void init_io(workspace *W) {
     int sizes[2];
     int subsizes[2];
     int starts[2];
+
     // Initialise files for MPI I/O. Requires init_parallel to have been
     // called first
  
     // Open up file
-    W->outfilename = malloc(FILENAMESIZE * sizeof(*W->outfilename));
-    // sprintf(W->outfilename, "out.dat");
-    sprintf(W->outfilename, "binary_out_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
-    MPI_File_open(MPI_COMM_WORLD, W->outfilename, MPI_MODE_WRONLY |
+
+    // sprintf(W->Toutfilename, "out.dat");
+
+    char tSuffix[] = "/tissueBlocks.dat";
+    char qSuffix[] = "/flow.dat";
+    char pSuffix[] = "/pressure.dat";
+
+    W->dirName = malloc(FILENAMESIZE * sizeof(*W->dirName));
+
+    sprintf(W->dirName, "np%02d_nlev%02d_sbtr%02d",W->n_procs, W->N, W->Nsub);
+
+    mkdir(W->dirName, S_IRWXU | S_IRWXG | S_IRWXO);
+
+//    W->Toutfilename = malloc((sizeof(W->dirName)+sizeof(tSuffix))*sizeof(*W->Toutfilename));
+    W->Toutfilename = malloc(FILENAMESIZE*sizeof(*W->Toutfilename));
+
+    sprintf(W->Toutfilename, "%s%s",W->dirName,tSuffix);
+
+    MPI_File_open(MPI_COMM_WORLD, W->Toutfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
 
 
-    W->Qoutfilename = malloc(FILENAMESIZE * sizeof(*W->Qoutfilename));
-    sprintf(W->Qoutfilename, "Qout_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
+//    W->Qoutfilename = malloc((sizeof(W->dirName)+sizeof(qSuffix))*sizeof(*W->Qoutfilename));
+    W->Qoutfilename = malloc(FILENAMESIZE*sizeof(*W->Qoutfilename));
+    sprintf(W->Qoutfilename, "%s%s",W->dirName,qSuffix);
     MPI_File_open(MPI_COMM_WORLD, W->Qoutfilename, MPI_MODE_WRONLY |
             MPI_MODE_CREATE, MPI_INFO_NULL, &W->Qoutfile);
 
-    W->Poutfilename = malloc(FILENAMESIZE * sizeof(*W->Poutfilename));
-    sprintf(W->Poutfilename, "Pout_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub );
+//    W->Poutfilename = malloc((sizeof(W->dirName)+sizeof(pSuffix))*sizeof(*W->Poutfilename));
+    W->Poutfilename = malloc(FILENAMESIZE*sizeof(*W->Poutfilename));
+    sprintf(W->Poutfilename, "%s%s",W->dirName,pSuffix);
+
     MPI_File_open(MPI_COMM_WORLD, W->Poutfilename, MPI_MODE_WRONLY |
                   MPI_MODE_CREATE, MPI_INFO_NULL, &W->Poutfile);
 
@@ -184,7 +205,7 @@ void close_io(workspace *W) {
     MPI_File_close(&W->outfile);
     MPI_File_close(&W->Qoutfile);
     MPI_File_close(&W->Poutfile);
-    free(W->outfilename);
+    free(W->Toutfilename);
     free(W->Qoutfilename);
     free(W->Poutfilename);
 }
@@ -325,8 +346,8 @@ void write_info(workspace *W) {
     if (W->rank == 0) {
         FILE *fp;
         // Write the data file
-        char infofilename[sizeof "info_np00_nlev00_sbtr00.dat"];
-        sprintf(infofilename, "info_np%02d_nlev%02d_sbtr%02d.dat",W->n_procs, W->N, W->Nsub);
+        char infofilename[sizeof "info.dat"];
+        sprintf(infofilename, "%s/info.dat",W->dirName);
         fp = fopen(infofilename, "w");
         fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local         m_global        n_global\n");
         fprintf(fp, "%-16d", W->n_procs);
