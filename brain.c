@@ -373,12 +373,22 @@ void set_spatial_coordinates(workspace *W) {
     int ig, jg;
     double delta;
 
-    // Work out arrangement of workers into mg x ng grid (note mg*ng = P)
-    mg = 1 << (l2P / 2);
-    ng = 1 << (l2P / 2 + l2P % 2);
+    int m, n; // number of rows / cols of blocks globally
+    // if rectangular, make it so there are more rows than columns
+    m = 1 << ((W->N - 1)/2 + (W->N - 1) %2);
+    n = 1 << ((W->N - 1)/2);
+
+    // Work out arrangement of workers, again, if rectangular, set more
+    // rows than columns
+    mg = 1 << ((l2P/2) + l2P%2);
+    ng = 1 << (l2P/2);
+    
     // Work out how many rows / columns of blocks we have for each worker
-    ml = 1 << ((W->Np - 1) / 2 + (W->Np - 1) % 2);
-    nl = 1 << (W->Np - 1) / 2;
+    //ml = 1 << ((W->Np - 1) / 2 + (W->Np - 1) % 2);
+    //nl = 1 << (W->Np - 1) / 2;
+    ml = m / mg;
+    nl = n / ng;
+
     ig = W->rank % mg;
     jg = W->rank / mg;
 
@@ -394,7 +404,6 @@ void set_spatial_coordinates(workspace *W) {
                             0.5 * delta * (double) (2*j - (nl - 1));
             W->y[i + ml * j] = yoffset + \
                             0.5 * delta * (double) (2*i - (ml - 1));
-	//printf("%d x / y coord: %f / %f \n", i + ml * j, W->x[i + ml * j], W->y[i + ml * j]);
         }
     }
     W->mlocal = ml;
