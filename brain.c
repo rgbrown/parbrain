@@ -141,7 +141,7 @@ void init_io(workspace *W) {
     char qSuffix[] = "/flow.dat";
     char pSuffix[] = "/pressure.dat";
 
-    W->dirName = malloc(FILENAMESIZE * sizeof(*W->dirName));
+    W->dirName = malloc(FILENAMESIZE/2 * sizeof(*W->dirName));
 
     sprintf(W->dirName, "np%02d_nlev%02d_sbtr%02d",W->n_procs, W->N, W->Nsub);
 
@@ -149,12 +149,9 @@ void init_io(workspace *W) {
 
 //    W->Toutfilename = malloc((sizeof(W->dirName)+sizeof(tSuffix))*sizeof(*W->Toutfilename));
     W->Toutfilename = malloc(FILENAMESIZE*sizeof(*W->Toutfilename));
-
     sprintf(W->Toutfilename, "%s%s",W->dirName,tSuffix);
-
     MPI_File_open(MPI_COMM_WORLD, W->Toutfilename, MPI_MODE_WRONLY |
-            MPI_MODE_CREATE, MPI_INFO_NULL, &W->outfile);
-
+            MPI_MODE_CREATE, MPI_INFO_NULL, &W->Toutfile);
 
 //    W->Qoutfilename = malloc((sizeof(W->dirName)+sizeof(qSuffix))*sizeof(*W->Qoutfilename));
     W->Qoutfilename = malloc(FILENAMESIZE*sizeof(*W->Qoutfilename));
@@ -165,7 +162,6 @@ void init_io(workspace *W) {
 //    W->Poutfilename = malloc((sizeof(W->dirName)+sizeof(pSuffix))*sizeof(*W->Poutfilename));
     W->Poutfilename = malloc(FILENAMESIZE*sizeof(*W->Poutfilename));
     sprintf(W->Poutfilename, "%s%s",W->dirName,pSuffix);
-
     MPI_File_open(MPI_COMM_WORLD, W->Poutfilename, MPI_MODE_WRONLY |
                   MPI_MODE_CREATE, MPI_INFO_NULL, &W->Poutfile);
 
@@ -202,7 +198,7 @@ void init_io(workspace *W) {
 void close_io(workspace *W) {
     // Close data files
     MPI_Type_free(&W->subarray);
-    MPI_File_close(&W->outfile);
+    MPI_File_close(&W->Toutfile);
     MPI_File_close(&W->Qoutfile);
     MPI_File_close(&W->Poutfile);
     free(W->Toutfilename);
@@ -211,15 +207,15 @@ void close_io(workspace *W) {
 }
 void write_data(workspace *W, double t, double *y) {
     // Set view for writing of timestamps
-    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE, MPI_DOUBLE,
+    MPI_File_set_view(W->Toutfile, W->displacement, MPI_DOUBLE, MPI_DOUBLE,
             "native", MPI_INFO_NULL);
     if (W->rank == 0) {
-        MPI_File_write(W->outfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+        MPI_File_write(W->Toutfile, &t, 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    MPI_File_set_view(W->outfile, W->displacement + sizeof(t), MPI_DOUBLE,
+    MPI_File_set_view(W->Toutfile, W->displacement + sizeof(t), MPI_DOUBLE,
             W->subarray, "native", MPI_INFO_NULL);
-    MPI_File_write_all(W->outfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    MPI_File_write_all(W->Toutfile, y, W->nu, MPI_DOUBLE, MPI_STATUS_IGNORE);
     W->displacement += W->displacement_per_write;
     W->n_writes++;
 }
@@ -343,11 +339,15 @@ void write_pressure(workspace *W, double t, double *p, double *p0) {
 
 void write_info(workspace *W) {
     // Write the summary info to disk
+    char * infofilename;
     if (W->rank == 0) {
         FILE *fp;
         // Write the data file
-        char infofilename[sizeof "info.dat"];
-        sprintf(infofilename, "%s/info.dat",W->dirName);
+	char iSuffix[] = "/info.dat";	
+	//infofilename = malloc((sizeof(W->dirName)+sizeof(iSuffix))*sizeof(*infofilename));
+	infofilename = malloc(FILENAMESIZE*sizeof(*infofilename));
+        sprintf(infofilename, "%s%s",W->dirName,iSuffix);
+
         fp = fopen(infofilename, "w");
         fprintf(fp, "n_processors    n_blocks        eqs_per_block   m_local         n_local         m_global        n_global\n");
         fprintf(fp, "%-16d", W->n_procs);
@@ -363,20 +363,20 @@ void write_info(workspace *W) {
 
 
     // Write the x and y coordinates to the file
-    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE,
+    MPI_File_set_view(W->Toutfile, W->displacement, MPI_DOUBLE,
             W->subarray_single, "native", MPI_INFO_NULL);
-    MPI_File_write_all(W->outfile, W->x, W->nblocks, MPI_DOUBLE,
+    MPI_File_write_all(W->Toutfile, W->x, W->nblocks, MPI_DOUBLE,
             MPI_STATUS_IGNORE);
     W->displacement += sizeof(*W->x) * W->nblocks * W->n_procs;
-    MPI_File_set_view(W->outfile, W->displacement, MPI_DOUBLE,
+    MPI_File_set_view(W->Toutfile, W->displacement, MPI_DOUBLE,
             W->subarray_single, "native", MPI_INFO_NULL);
-    MPI_File_write_all(W->outfile, W->y, W->nblocks, MPI_DOUBLE,
+    MPI_File_write_all(W->Toutfile, W->y, W->nblocks, MPI_DOUBLE,
             MPI_STATUS_IGNORE);
     W->displacement += sizeof(*W->y) * W->nblocks * W->n_procs;
 
 
-    //MPI_File_write(W->outfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
-    //MPI_File_write(W->outfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    //MPI_File_write(W->Toutfile, W->x, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    //MPI_File_write(W->Toutfile, W->y, W->nblocks, MPI_DOUBLE, MPI_STATUS_IGNORE);
 }
 
 void set_spatial_coordinates(workspace *W) {

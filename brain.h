@@ -92,7 +92,7 @@ typedef struct workspace {
     char    *Toutfilename;
     char    *Qoutfilename;
     char    *Poutfilename;
-    MPI_File outfile;
+    MPI_File Toutfile;
     MPI_File Qoutfile;
     MPI_File Poutfile;
     char    *dirName;
