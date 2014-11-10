@@ -22,6 +22,7 @@ const double MU    = 3.5e-3;  // Pa s (Viscosity)
 workspace * init(int argc, char **argv) {
     workspace *W;
     W = malloc(sizeof *W);
+
     W->jacupdates = 0;
     W->fevals     = 0;
     W->QglobalPos = 0;
@@ -102,23 +103,29 @@ void init_parallel(workspace *W, int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &W->n_procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &W->rank);
     assert(is_power_of_two(W->n_procs));
-
-    // Parse input parameters and set tree sizes. There are four N values
-    // that matter: 
-    //     N is the number of levels in the tree (total)
-    //     N0: number of levels in the root subtree
-    //     Np: number of levels in the subtrees corresponding to each
-    //     worker (N0 + Np = N)
-    //     Nsub: number of levels in the small scale subtrees for Jacobian
-    //     computation
+    /*
+    Parse input parameters and set tree sizes. There are four N values
+    that matter: 
+        N is the number of levels in the tree (total)
+        N0: number of levels in the root subtree
+        Np: number of levels in the subtrees corresponding to each
+        worker (N0 + Np = N)
+        Nsub: number of levels in the small scale subtrees for Jacobian
+        computation
+    */
     W->N    = NDEFAULT; 
     W->Nsub = NSUBDEFAULT;
     if (argc > 1)
-        W->N = atoi(argv[1]);
+        W->N = atoi(argv[1]); // N has been specified at command line
     if (argc > 2)
-        W->Nsub = atoi(argv[2]);
-    W->N0 = (int) round(log2((double) W->n_procs)); // number of levels in root
-    W->Np = W->N - W->N0; // number of levels in the tree looked after by each worker 
+        W->Nsub = atoi(argv[2]); // Nsub has been specified at command line
+    W->N0 = (int) round(log2((double) W->n_procs)); 
+    W->Np = W->N - W->N0; 
+
+    /* Check that the user input etc. makes sense. This catches the two bad
+     * cases of too many workers, or Nsub being too large */
+    assert(W->Np > W->Nsub);
+
 
     // Configure buffer and parameters for MPI_Allgather)
     W->buf  = malloc(W->n_procs * NSYMBOLS * sizeof(*W->buf));
@@ -166,7 +173,7 @@ void init_io(workspace *W) {
                   MPI_MODE_CREATE, MPI_INFO_NULL, &W->Poutfile);
 
     // Create subarray data type. This assumes column major orderin
-    // (MPI_ORDER_FORTRAN). The factor of W->nu should be moved to
+    // (MPI_ORDER_FORTRAN). The factor of W->neq should be moved to
     // subsizes[1] if row major (MPI_ORDER_C) is desired
     subsizes[0] = W->mlocal * W->neq;
     subsizes[1] = W->nlocal;
@@ -387,12 +394,22 @@ void set_spatial_coordinates(workspace *W) {
     int ig, jg;
     double delta;
 
-    // Work out arrangement of workers into mg x ng grid (note mg*ng = P)
-    mg = 1 << (l2P / 2);
-    ng = 1 << (l2P / 2 + l2P % 2);
+    int m, n; // number of rows / cols of blocks globally
+    // if rectangular, make it so there are more rows than columns
+    m = 1 << ((W->N - 1)/2 + (W->N - 1) %2);
+    n = 1 << ((W->N - 1)/2);
+
+    // Work out arrangement of workers, again, if rectangular, set more
+    // rows than columns
+    mg = 1 << ((l2P/2) + l2P%2);
+    ng = 1 << (l2P/2);
+    
     // Work out how many rows / columns of blocks we have for each worker
-    ml = 1 << ((W->Np - 1) / 2 + (W->Np - 1) % 2);
-    nl = 1 << (W->Np - 1) / 2;
+    //ml = 1 << ((W->Np - 1) / 2 + (W->Np - 1) % 2);
+    //nl = 1 << (W->Np - 1) / 2;
+    ml = m / mg;
+    nl = n / ng;
+
     ig = W->rank % mg;
     jg = W->rank / mg;
 
@@ -408,7 +425,6 @@ void set_spatial_coordinates(workspace *W) {
                             0.5 * delta * (double) (2*j - (nl - 1));
             W->y[i + ml * j] = yoffset + \
                             0.5 * delta * (double) (2*i - (ml - 1));
-	//printf("%d x / y coord: %f / %f \n", i + ml * j, W->x[i + ml * j], W->y[i + ml * j]);
         }
     }
     W->mlocal = ml;
