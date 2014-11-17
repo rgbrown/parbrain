@@ -232,7 +232,7 @@ void write_flow(workspace *W, double t, double *q, double *q0) {
     int displ0, displ1, displ2;
     int chunk_size;
    
-    int xbranch = 0;  
+    int xbranch = 1;  
     int pos = W->QglobalPos;   // rank-specific position in Qtot
     int pos_q = 0;     // position in q vector 
 
@@ -290,12 +290,12 @@ void write_pressure(workspace *W, double t, double *p, double *p0) {
     int displ0, displ1, displ2;
     int chunk_size;
     
-    int xbranch = 0;
+    int xbranch = 1;
     int pos = W->PglobalPos;   // rank-specific position in Ptot
     int pos_p = 0;     // position in p vector
     
-    int nl = W->nlocal; // because the values will get updated here
-    int ml = W->mlocal/2; // !
+    int nl = W->nlocal/2; // because the values will get updated here
+    int ml = W->mlocal; ///2; // !
     int ng = W->nglobal;
     int mg = W->mglobal;
     
