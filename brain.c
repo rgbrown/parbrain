@@ -136,13 +136,11 @@ void init_io(workspace *W) {
     int sizes[2];
     int subsizes[2];
     int starts[2];
+    int res=0;
+    int i=0;
 
     // Initialise files for MPI I/O. Requires init_parallel to have been
     // called first
- 
-    // Open up file
-
-    // sprintf(W->Toutfilename, "out.dat");
 
     char tSuffix[] = "/tissueBlocks.dat";
     char qSuffix[] = "/flow.dat";
@@ -150,9 +148,17 @@ void init_io(workspace *W) {
 
     W->dirName = malloc(FILENAMESIZE/2 * sizeof(*W->dirName));
 
-    sprintf(W->dirName, "np%02d_nlev%02d_sbtr%02d",W->n_procs, W->N, W->Nsub);
+    if (W->rank == 0) {
+        sprintf(W->dirName, "np%02d_nlev%02d_sbtr%02d",W->n_procs, W->N, W->Nsub);
 
-    mkdir(W->dirName, S_IRWXU | S_IRWXG | S_IRWXO);
+        res = mkdir(W->dirName, S_IRWXU | S_IRWXG | S_IRWXO); //res == 0 then the directory doesn't exist
+            while (res == -1) { //if dirName already exists, add a suffix (eg. _1, _2 etc)
+                i++;
+                sprintf(W->dirName, "np%02d_nlev%02d_sbtr%02d_%d",W->n_procs, W->N, W->Nsub,i);
+                res = mkdir(W->dirName, S_IRWXU | S_IRWXG | S_IRWXO); 
+            }
+    }
+    MPI_Bcast(W->dirName,FILENAMESIZE/2,MPI_CHAR, 0, MPI_COMM_WORLD);
 
 //    W->Toutfilename = malloc((sizeof(W->dirName)+sizeof(tSuffix))*sizeof(*W->Toutfilename));
     W->Toutfilename = malloc(FILENAMESIZE*sizeof(*W->Toutfilename));
@@ -232,7 +238,7 @@ void write_flow(workspace *W, double t, double *q, double *q0) {
     int displ0, displ1, displ2;
     int chunk_size;
    
-    int xbranch = 0;  
+    int xbranch = 1;  
     int pos = W->QglobalPos;   // rank-specific position in Qtot
     int pos_q = 0;     // position in q vector 
 
@@ -290,12 +296,12 @@ void write_pressure(workspace *W, double t, double *p, double *p0) {
     int displ0, displ1, displ2;
     int chunk_size;
     
-    int xbranch = 0;
+    int xbranch = 1;
     int pos = W->PglobalPos;   // rank-specific position in Ptot
     int pos_p = 0;     // position in p vector
     
-    int nl = W->nlocal; // because the values will get updated here
-    int ml = W->mlocal/2; // !
+    int nl = W->nlocal/2; // because the values will get updated here
+    int ml = W->mlocal; ///2; // !
     int ng = W->nglobal;
     int mg = W->mglobal;
     
