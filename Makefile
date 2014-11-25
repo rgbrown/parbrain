@@ -5,8 +5,8 @@ UNAME_S = $(shell uname -s)
 # CFALL = $(CFLAGS) $(TARGET_ARCH) -g 
 CFALL = $(CFLAGS) $(TARGET_ARCH)  
 ifeq ($(UNAME_M), ppc64)
-	CFARCHDEP = -q64 -qtune=pwr7 -qarch=pwr7 -qhot
-	MPCC = mpcc
+        CFARCHDEP = -m64 -mtune=power7 -mcpu=power7 -pthread -std=c99 -O2
+        MPCC = mpcc -compiler gcc
 	INC = 
 	LIB = 
 endif
@@ -21,6 +21,8 @@ else
 	INC = -I/usr/include/suitesparse 
 	LIB =
 endif
+
+#module add suitesparse/4.2.1_adv
 
 CF = $(CFALL) $(CFARCHDEP)
 CS = -lcxsparse
