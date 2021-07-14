@@ -42,6 +42,7 @@ typedef struct nvu_workspace {
 
 } nvu_workspace;
 
+
 // Initialisation routine. Gets called once before simulation
 nvu_workspace* nvu_init(void); 
 
